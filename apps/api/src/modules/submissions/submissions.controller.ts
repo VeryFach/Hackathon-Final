@@ -61,6 +61,19 @@ export class SubmissionsController {
     return this.submissionsService.findMine(userId);
   }
 
+  @Get(':id')
+  @ApiOperation({ summary: 'Get submission by ID' })
+  @ApiParam({ name: 'id', description: 'Submission ID', example: 'sub-uuid-here' })
+  @ApiResponse({ status: 200, description: 'Returns submission details' })
+  @ApiResponse({ status: 404, description: 'Submission not found' })
+  @ApiResponse({ status: 403, description: 'Not authorized to view this submission' })
+  findOne(
+    @Param('id') id: string,
+    @GetUser('id') userId: string,
+  ) {
+    return this.submissionsService.findOne(id, userId);
+  }
+
   @Patch(':id/accept')
   @Roles('pengepul')
   @ApiOperation({ summary: 'Accept a pending submission' })

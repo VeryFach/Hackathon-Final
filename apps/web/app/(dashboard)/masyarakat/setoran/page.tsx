@@ -2,30 +2,13 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AppShell, StatusBadge, formatRp } from "@/components/app-shell";
-import { submissionService } from "@/lib/api";
+import { useSubmissions } from "@/lib/api/hooks";
 import { ArrowRight, Plus } from "lucide-react";
 
 export default function SetoranPage() {
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: submissions = [], isLoading, error } = useSubmissions();
 
-  useEffect(() => {
-    fetchSubmissions();
-  }, []);
-
-  const fetchSubmissions = async () => {
-    try {
-      const data = await submissionService.findMine();
-      setSubmissions(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat data setoran");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <AppShell
         title="Riwayat Setoran"
@@ -60,7 +43,9 @@ export default function SetoranPage() {
           </Link>
         }
       >
-        <div className="text-sm text-red-500">{error}</div>
+        <div className="text-sm text-red-500">
+          {(error as any)?.response?.data?.message || "Gagal memuat data setoran"}
+        </div>
       </AppShell>
     );
   }

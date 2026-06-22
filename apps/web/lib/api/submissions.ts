@@ -29,6 +29,17 @@ export interface Submission {
   batchItems?: Array<{
     id: string;
     batchId: string;
+    batch?: {
+      id: string;
+      labResult?: {
+        id: string;
+        acidityLevel: number;
+        impurityLevel: number;
+        waterContent: number;
+        grade: string;
+        notes: string | null;
+      } | null;
+    } | null;
   }>;
   payout?: {
     id: string;

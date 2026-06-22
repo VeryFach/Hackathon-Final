@@ -53,12 +53,61 @@ export class SubmissionsService {
           include: { user: { select: { id: true, fullName: true, email: true } } },
         },
         batchItems: {
-          include: { batch: true },
+          include: { 
+            batch: {
+              include: {
+                labResult: true,
+              },
+            },
+          },
         },
         payout: true,
       },
       orderBy: { createdAt: 'desc' },
     });
+  }
+
+  async findOne(submissionId: string, userId: string) {
+    const depositorProfile = await this.prisma.depositorProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!depositorProfile) {
+      throw new NotFoundException('Depositor profile not found.');
+    }
+
+    const submission = await this.prisma.oilSubmission.findUnique({
+      where: { id: submissionId },
+      include: {
+        collector: {
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        },
+        depositor: {
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        },
+        batchItems: {
+          include: { 
+            batch: {
+              include: {
+                labResult: true,
+              },
+            },
+          },
+        },
+        payout: true,
+      },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found.');
+    }
+
+    // Verify ownership
+    if (submission.depositorId !== depositorProfile.id) {
+      throw new ForbiddenException('You are not authorized to view this submission.');
+    }
+
+    return submission;
   }
 
   async accept(submissionId: string, userId: string) {
