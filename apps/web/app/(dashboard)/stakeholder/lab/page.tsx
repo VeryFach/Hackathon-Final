@@ -1,4 +1,4 @@
-// apps/web/app/(dashboard)/stakeholder/page.tsx
+// apps/web/app/(dashboard)/stakeholder/lab/page.tsx
 "use client";
 
 import React, { useState } from "react";
