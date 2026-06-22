@@ -28,6 +28,8 @@ services:
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-hackathon_db}?schema=public
       - JWT_SECRET=${JWT_SECRET}
+      - FRONTEND_URL=${FRONTEND_URL:-http://opato.web.id}
+      - AUTH_COOKIE_SECURE=${AUTH_COOKIE_SECURE:-false}
       - AI_SERVICE_URL=http://ai-service:8000
     depends_on:
       db:

@@ -4,16 +4,38 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import cookieParser from 'cookie-parser';
 
+const getAllowedOrigins = () => {
+  const configuredOrigins = [
+    process.env.FRONTEND_URL,
+    process.env.NEXT_PUBLIC_API_URL,
+  ]
+    .filter(Boolean)
+    .flatMap((url) => {
+      try {
+        return [new URL(url as string).origin];
+      } catch {
+        return [];
+      }
+    });
+
+  return Array.from(
+    new Set([
+      'http://localhost:3000',
+      'http://localhost:3001',
+      'http://opato.web.id',
+      'http://www.opato.web.id',
+      ...configuredOrigins,
+    ]),
+  );
+};
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   app.use(cookieParser());
 
   app.enableCors({
-    origin: [
-      'http://localhost:3000',
-      'http://localhost:3001',
-    ],
+    origin: getAllowedOrigins(),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
   });
