@@ -1,206 +1,267 @@
 "use client";
-
 import React, { useState } from "react";
-import { User, Mail, Save, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { T } from "@/lib/design-tokens";
-import { useUser } from "@/lib/user-context";
+import {
+  User,
+  MapPin,
+  Package,
+  Save,
+  Trash2,
+  Shield,
+  Mail,
+  Key,
+} from "lucide-react";
 
-export default function ProfilePage() {
-  const { user, fetchUser } = useUser();
-  const [fullName, setFullName] = useState(user?.fullName || "");
-  const [email] = useState(user?.email || ""); // Email tidak bisa diubah
-  const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+// Tipe data berdasarkan Prisma Schema
+type Role = "USER" | "DEPOSITOR" | "COLLECTOR";
 
-  const handleUpdateProfile = async (e: React.FormEvent) => {
+interface UserProfileData {
+  id: string;
+  fullName: string;
+  email: string;
+  role: Role;
+  // Depositor Fields
+  address?: string;
+  // Collector Fields
+  warehouseAddress?: string;
+  serviceRadiusKm?: number;
+  capacityLiter?: number;
+  // Shared Geospatial
+  latitude?: number;
+  longitude?: number;
+}
+
+export default function UserProfileManager() {
+  // State untuk nyimpen data form (Simulasi Read/Update)
+  const [formData, setFormData] = useState<UserProfileData>({
+    id: "usr-123",
+    fullName: "Raka Fadillah",
+    email: "raka@example.com",
+    role: "COLLECTOR",
+    warehouseAddress: "Jl. Suhat No. 15",
+    serviceRadiusKm: 10,
+    capacityLiter: 500,
+    latitude: -7.9522,
+    longitude: 112.6145,
+  });
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!fullName.trim()) {
-      setMessage({ type: "error", text: "Nama lengkap wajib diisi." });
-      return;
-    }
+    // Logic UPDATE ke backend taruh di sini (misal via fetch/axios ke Next.js API route)
+    console.log("Menyimpan data profile:", formData);
+    alert("Profile berhasil diperbarui!");
+  };
 
-    setMessage(null);
-    setLoading(true);
-
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/users`,
-        {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ fullName }),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || "Gagal update profile");
-      }
-
-      setMessage({ type: "success", text: "Profile berhasil diupdate!" });
-      // Refresh user data
-      await fetchUser();
-    } catch (err: any) {
-      setMessage({ type: "error", text: err.message || "Terjadi kesalahan" });
-    } finally {
-      setLoading(false);
+  const handleDelete = () => {
+    // Logic DELETE ke backend
+    if (confirm("Yakin ingin menghapus akun ini beserta profilnya?")) {
+      console.log("Menghapus user", formData.id);
     }
   };
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Profile Card */}
-      <div className="bg-card border border-border rounded-[var(--radius)] overflow-hidden">
-        {/* Header */}
-        <div className="p-5 border-b border-border">
-          <h2 className="font-mono font-bold text-foreground text-lg">Informasi Profile</h2>
-          <p className="font-sans text-sm text-muted-foreground mt-1">
-            Kelola informasi pribadi Anda
+    <div className="min-h-screen bg-background text-foreground p-6 md:p-12 pt-0 md:pt-0 font-sans">
+      <div className="max-w-4xl mx-auto space-y-8">
+        {/* Header Section */}
+        <div>
+          <h1 className="text-3xl font-bold bg-[image:var(--gradient-sage)] text-transparent bg-clip-text">
+            Pengaturan Profil
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Kelola informasi dasar dan data spesifik sesuai peran Anda.
           </p>
         </div>
 
-        {/* Content */}
-        <div className="p-5">
-          {/* Avatar */}
-          <div className="flex items-center gap-4 mb-6">
-            <div
-              className="w-16 h-16 rounded-full border-2 flex items-center justify-center font-mono text-2xl font-bold"
-              style={{
-                borderColor: `${T.primary}40`,
-                background: `${T.primary}15`,
-                color: T.primary,
-              }}
-            >
-              {user?.fullName?.charAt(0).toUpperCase() || "U"}
-            </div>
-            <div>
-              <p className="font-mono font-bold text-foreground text-lg">
-                {user?.fullName || "User"}
-              </p>
-              <p className="font-sans text-sm text-muted-foreground">
-                {user?.email || "user@example.com"}
-              </p>
+        <form onSubmit={handleSave} className="space-y-6">
+          {/* Card: Informasi Dasar (Tabel User) */}
+          <div className="bg-card text-card-foreground p-6 rounded-[var(--radius)] border border-border shadow-soft">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 border-b border-border pb-3">
+              <User className="w-5 h-5 text-primary" />
+              Informasi Dasar
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Nama Lengkap</label>
+                <div className="relative">
+                  <User className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="text"
+                    name="fullName"
+                    value={formData.fullName}
+                    onChange={handleChange}
+                    className="w-full bg-input border border-border rounded-md py-2 pl-10 pr-3 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Email</label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full bg-input border border-border rounded-md py-2 pl-10 pr-3 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                    required
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Password Baru</label>
+                <div className="relative">
+                  <Key className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <input
+                    type="password"
+                    placeholder="Kosongkan jika tidak ingin ganti"
+                    className="w-full bg-input border border-border rounded-md py-2 pl-10 pr-3 focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Peran (Role)</label>
+                <div className="relative">
+                  <Shield className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                  <select
+                    name="role"
+                    value={formData.role}
+                    onChange={handleChange}
+                    className="w-full bg-input border border-border rounded-md py-2 pl-10 pr-3 appearance-none focus:outline-none focus:ring-2 focus:ring-ring transition-all"
+                  >
+                    <option value="USER">Standard User</option>
+                    <option value="DEPOSITOR">Depositor (Penyetor)</option>
+                    <option value="COLLECTOR">Collector (Pengepul)</option>
+                  </select>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Success/Error Message */}
-          {message && (
-            <div
-              className={`flex items-start gap-2 p-3 border rounded-sm text-xs font-sans mb-4 ${
-                message.type === "success" ? "text-green-600" : ""
-              }`}
-              style={{
-                borderColor:
-                  message.type === "success"
-                    ? `${T.success}30`
-                    : `${T.danger}30`,
-                background:
-                  message.type === "success"
-                    ? `${T.success}08`
-                    : `${T.danger}08`,
-                color: message.type === "success" ? T.success : T.danger,
-              }}
-            >
-              {message.type === "success" ? (
-                <CheckCircle2 size={13} className="flex-shrink-0 mt-0.5" />
-              ) : (
-                <AlertTriangle size={13} className="flex-shrink-0 mt-0.5" />
-              )}
-              {message.text}
+          {/* Card: Dynamic Fields berdasarkan Role */}
+          {formData.role !== "USER" && (
+            <div className="bg-card text-card-foreground p-6 rounded-[var(--radius)] border border-border shadow-soft transition-all">
+              <h2 className="text-xl font-semibold mb-4 flex items-center gap-2 border-b border-border pb-3">
+                <MapPin className="w-5 h-5 text-accent" />
+                Data {formData.role === "DEPOSITOR" ? "Penyetor" : "Pengepul"}
+              </h2>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Field Khusus Depositor */}
+                {formData.role === "DEPOSITOR" && (
+                  <div className="col-span-1 md:col-span-2 space-y-2">
+                    <label className="text-sm font-medium">
+                      Alamat Lengkap
+                    </label>
+                    <input
+                      type="text"
+                      name="address"
+                      value={formData.address || ""}
+                      onChange={handleChange}
+                      className="w-full bg-input border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                  </div>
+                )}
+
+                {/* Field Khusus Collector */}
+                {formData.role === "COLLECTOR" && (
+                  <>
+                    <div className="col-span-1 md:col-span-2 space-y-2">
+                      <label className="text-sm font-medium">
+                        Alamat Gudang (Warehouse)
+                      </label>
+                      <input
+                        type="text"
+                        name="warehouseAddress"
+                        value={formData.warehouseAddress || ""}
+                        onChange={handleChange}
+                        className="w-full bg-input border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring font-mono text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Radius Servis (Km)
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          name="serviceRadiusKm"
+                          value={formData.serviceRadiusKm || ""}
+                          onChange={handleChange}
+                          className="w-full bg-input border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        Kapasitas (Liter)
+                      </label>
+                      <div className="relative">
+                        <Package className="absolute left-3 top-3 w-4 h-4 text-muted-foreground" />
+                        <input
+                          type="number"
+                          name="capacityLiter"
+                          value={formData.capacityLiter || ""}
+                          onChange={handleChange}
+                          className="w-full bg-input border border-border rounded-md py-2 pl-10 pr-3 focus:outline-none focus:ring-2 focus:ring-ring font-mono"
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Shared Fields: Latitude & Longitude */}
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Latitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="latitude"
+                    value={formData.latitude || ""}
+                    onChange={handleChange}
+                    className="w-full bg-input border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring font-mono text-sm"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Longitude</label>
+                  <input
+                    type="number"
+                    step="any"
+                    name="longitude"
+                    value={formData.longitude || ""}
+                    onChange={handleChange}
+                    className="w-full bg-input border border-border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-ring font-mono text-sm"
+                  />
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Form */}
-          <form onSubmit={handleUpdateProfile} className="space-y-4">
-            {/* Full Name */}
-            <div>
-              <label className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase block mb-1.5">
-                Nama Lengkap
-              </label>
-              <div className="relative">
-                <User
-                  size={13}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="text"
-                  value={fullName}
-                  onChange={(e) => setFullName(e.target.value)}
-                  placeholder="Nama lengkap Anda"
-                  className="w-full bg-secondary border border-border pl-9 pr-4 py-2.5 font-sans text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/60 rounded-sm transition-colors"
-                />
-              </div>
-            </div>
-
-            {/* Email (Read-only) */}
-            <div>
-              <label className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase block mb-1.5">
-                Email
-              </label>
-              <div className="relative">
-                <Mail
-                  size={13}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
-                />
-                <input
-                  type="email"
-                  value={email}
-                  readOnly
-                  className="w-full bg-muted/50 border border-border pl-9 pr-4 py-2.5 font-sans text-sm text-muted-foreground cursor-not-allowed rounded-sm"
-                />
-              </div>
-              <p className="font-sans text-[11px] text-muted-foreground mt-1">
-                Email tidak dapat diubah
-              </p>
-            </div>
-
-            {/* Submit */}
+          {/* Action Buttons */}
+          <div className="flex flex-col sm:flex-row justify-between items-center pt-4 border-t border-border mt-8 gap-4">
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="flex items-center gap-2 px-4 py-2 text-destructive hover:bg-destructive hover:text-destructive-foreground rounded-md transition-colors w-full sm:w-auto justify-center"
+            >
+              <Trash2 className="w-4 h-4" />
+              Hapus Akun
+            </button>
             <button
               type="submit"
-              disabled={loading}
-              className="w-full py-2.5 font-mono text-sm tracking-wider rounded-sm transition-opacity hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
-              style={{ background: T.primary, color: "var(--primary-foreground)" }}
+              className="flex items-center gap-2 px-6 py-2 bg-[image:var(--gradient-sage)] text-primary-foreground rounded-md shadow-elevated hover:opacity-90 transition-opacity w-full sm:w-auto justify-center font-medium"
             >
-              {loading ? (
-                <>
-                  <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                  Menyimpan...
-                </>
-              ) : (
-                <>
-                  <Save size={13} />
-                  Simpan Perubahan
-                </>
-              )}
+              <Save className="w-4 h-4" />
+              Simpan Perubahan
             </button>
-          </form>
-        </div>
-      </div>
-
-      {/* Account Info Card */}
-      <div className="bg-card border border-border rounded-[var(--radius)] overflow-hidden">
-        <div className="p-5 border-b border-border">
-          <h2 className="font-mono font-bold text-foreground text-lg">Informasi Akun</h2>
-          <p className="font-sans text-sm text-muted-foreground mt-1">
-            Detail akun Anda
-          </p>
-        </div>
-        <div className="p-5 space-y-3">
-          <div className="flex justify-between items-center py-2 border-b border-border">
-            <span className="font-sans text-sm text-muted-foreground">User ID</span>
-            <span className="font-mono text-xs text-foreground">{user?.id || "-"}</span>
           </div>
-          <div className="flex justify-between items-center py-2">
-            <span className="font-sans text-sm text-muted-foreground">Status</span>
-            <span
-              className="font-mono text-xs px-2 py-1 border rounded-sm"
-              style={{ color: T.success, borderColor: `${T.success}40`, background: `${T.success}10` }}
-            >
-              Aktif
-            </span>
-          </div>
-        </div>
+        </form>
       </div>
     </div>
   );
