@@ -4,22 +4,48 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
-  ChevronRight, Bell, Search, Menu, X, LogOut, User, Settings, ChevronDown,
+  ChevronRight,
+  Bell,
+  Search,
+  Menu,
+  X,
+  LogOut,
+  User,
+  Settings,
+  ChevronDown,
 } from "lucide-react";
+
 import { CONFIG } from "@/lib/config";
 import { T } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/user-context";
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const pathname = usePathname();
   const router = useRouter();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
+
   const { user, loading: userLoading } = useUser();
 
-  const activeItem = CONFIG.navItems.find((n) => n.href === pathname);
+  // =========================
+  // ROLE + NAV CONFIG
+  // =========================
+  const role = user?.role ?? "masyarakat";
+  const navItems = CONFIG.navItems[role];
+
+  // =========================
+  // ACTIVE ITEM (GLOBAL SEARCH)
+  // =========================
+  const activeItem = Object.values(CONFIG.navItems)
+    .flat()
+    .find((n) => n.href === pathname);
 
   const navigate = (href: string) => {
     setSidebarOpen(false);
@@ -28,10 +54,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/auth/logout`, {
-        method: "POST",
-        credentials: "include",
-      });
+      await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/auth/logout`,
+        {
+          method: "POST",
+          credentials: "include",
+        },
+      );
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
@@ -39,29 +68,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }
   };
 
-  const handleProfileClick = () => {
-    setProfileOpen((v) => !v);
-  };
-
-  // Close profile dropdown when clicking outside
   const handleProfileAction = (action: string) => {
     setProfileOpen(false);
-    if (action === "logout") {
-      handleLogout();
-    } else if (action === "profile") {
-      // Navigate to profile page in the future
-      setProfileOpen(false);
-    } else if (action === "settings") {
-      navigate("/settings");
-    }
+
+    if (action === "logout") handleLogout();
+    if (action === "settings") navigate("/settings");
   };
 
-  // Close dropdowns when clicking outside
   React.useEffect(() => {
     const handleClickOutside = () => {
-      if (profileOpen) {
-        setProfileOpen(false);
-      }
+      if (profileOpen) setProfileOpen(false);
     };
 
     if (profileOpen) {
@@ -72,7 +88,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="bg-background text-foreground min-h-screen">
-      {/* ── Top Bar (Fixed) ── */}
       <header className="fixed top-0 left-0 right-0 h-14 border-b border-border bg-card flex items-center px-4 gap-3 z-40">
         {/* Hamburger */}
         <button
@@ -84,172 +99,188 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo */}
         <div className="flex items-center gap-2">
-          <div className="w-5 h-5 rounded-sm flex-shrink-0" style={{ background: T.primary }} />
-          <span className="font-mono font-black text-foreground tracking-tight">
+          <div
+            className="w-5 h-5 rounded-sm"
+            style={{ background: T.primary }}
+          />
+          <span className="font-mono font-black tracking-tight">
             {CONFIG.appName}
           </span>
         </div>
 
         {/* Search */}
         <div className="flex-1 max-w-xs relative mx-2 hidden sm:block">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+          <Search
+            size={13}
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+          />
           <input
-            className="w-full bg-secondary border border-border pl-8 pr-4 py-2 text-sm font-sans text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/50 rounded-sm"
+            className="w-full bg-secondary border border-border pl-8 pr-4 py-2 text-sm rounded-sm focus:outline-none"
             placeholder="Cari..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
 
+        {/* Right side */}
         <div className="ml-auto flex items-center gap-2 relative">
-          <button className="relative p-2 text-muted-foreground hover:text-foreground transition-colors">
+          <button className="relative p-2 text-muted-foreground hover:text-foreground">
             <Bell size={16} />
-            <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: T.danger }} />
+            <span
+              className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full"
+              style={{ background: T.danger }}
+            />
           </button>
 
-          {/* User badge with dropdown */}
+          {/* Profile */}
           <div className="relative">
             <button
               onClick={(e) => {
                 e.stopPropagation();
-                handleProfileClick();
+                setProfileOpen((v) => !v);
               }}
-              className="flex items-center gap-2 pl-2 border-l border-border ml-1 hover:bg-muted/50 transition-colors rounded-sm px-2 py-1"
+              className="flex items-center gap-2 pl-2 border-l border-border px-2 py-1 rounded-sm hover:bg-muted/50"
             >
               <div
-                className="w-7 h-7 rounded-full border flex items-center justify-center font-mono text-[11px] font-bold"
-                style={{ borderColor: `${T.primary}30`, background: `${T.primary}15`, color: T.primary }}
+                className="w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
+                style={{
+                  background: `${T.primary}15`,
+                  color: T.primary,
+                  border: `1px solid ${T.primary}30`,
+                }}
               >
-                {userLoading ? "..." : user?.fullName?.charAt(0).toUpperCase() || "U"}
+                {userLoading
+                  ? "..."
+                  : user?.fullName?.charAt(0).toUpperCase() || "U"}
               </div>
-              <span className="font-mono text-xs text-muted-foreground hidden sm:block">
+
+              <span className="hidden sm:block text-xs text-muted-foreground">
                 {userLoading ? "Loading..." : user?.fullName || "User"}
               </span>
-              <ChevronDown size={12} className="text-muted-foreground" />
+
+              <ChevronDown size={12} />
             </button>
 
-            {/* Profile dropdown */}
+            {/* Dropdown */}
             {profileOpen && (
               <div
-                className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-[var(--radius)] shadow-lg z-50 overflow-hidden"
+                className="absolute right-0 top-full mt-2 w-48 bg-card border border-border rounded-md shadow-lg z-50"
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* User info */}
                 <div className="p-3 border-b border-border">
-                  <p className="font-mono text-xs font-bold text-foreground">
+                  <p className="text-xs font-bold">
                     {user?.fullName || "User"}
                   </p>
-                  <p className="font-sans text-[11px] text-muted-foreground truncate">
-                    {user?.email || "user@example.com"}
+                  <p className="text-[11px] text-muted-foreground truncate">
+                    {user?.email}
                   </p>
                 </div>
 
-                {/* Menu items */}
-                <div className="py-1">
-                  <button
-                    onClick={() => handleProfileAction("profile")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                  >
-                    <User size={14} />
-                    <span className="font-sans text-xs">Profil</span>
-                  </button>
-                  <button
-                    onClick={() => handleProfileAction("settings")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted/50 transition-colors"
-                  >
-                    <Settings size={14} />
-                    <span className="font-sans text-xs">Pengaturan</span>
-                  </button>
-                  <div className="border-t border-border my-1" />
-                  <button
-                    onClick={() => handleProfileAction("logout")}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                  >
-                    <LogOut size={14} />
-                    <span className="font-sans text-xs">Keluar</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleProfileAction("settings")}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-muted/50"
+                >
+                  <Settings size={14} />
+                  Settings
+                </button>
+
+                <button
+                  onClick={() => handleProfileAction("logout")}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-600 hover:bg-red-50"
+                >
+                  <LogOut size={14} />
+                  Logout
+                </button>
               </div>
             )}
           </div>
         </div>
       </header>
 
-      {/* ── Body (with top padding for fixed header) ── */}
-      <div className="pt-14 flex flex-1 min-h-screen">
-        {/* Backdrop for sidebar */}
+      {/* =========================
+          BODY
+      ========================= */}
+      <div className="pt-14 flex min-h-screen">
+        {/* BACKDROP */}
         {sidebarOpen && (
           <div
-            className="fixed top-14 left-0 right-0 bottom-0 z-20 bg-foreground/20 backdrop-blur-[2px]"
+            className="fixed inset-0 top-14 bg-black/20 z-20"
             onClick={() => setSidebarOpen(false)}
           />
         )}
-      
-        {/* Sidebar Drawer */}
+
+        {/* SIDEBAR */}
         <aside
           className={cn(
-            "fixed top-14 left-0 bottom-0 z-30 w-56 bg-card border-r border-border flex flex-col transition-transform duration-200 ease-out",
-            sidebarOpen ? "translate-x-0 shadow-xl" : "-translate-x-full"
+            "fixed top-14 left-0 bottom-0 w-56 bg-card border-r border-border z-30 transition-transform",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
-          <nav className="p-3 flex-1 space-y-0.5 overflow-y-auto">
-            {CONFIG.navItems.map((item) => {
+          <nav className="p-3 space-y-1 overflow-y-auto">
+            {navItems?.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+
+              if (!Icon) return null;
+              const isActive = item.exact
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
+
               return (
                 <button
                   key={item.id}
                   onClick={() => navigate(item.href)}
                   className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 text-left transition-colors rounded-sm",
+                    "w-full flex items-center gap-3 px-3 py-2 rounded-sm text-left transition",
                     isActive
                       ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                      : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
                   )}
                 >
                   <Icon size={15} />
-                  <span className="font-mono text-xs tracking-wide">{item.label}</span>
-                  {isActive && <ChevronRight size={12} className="ml-auto opacity-60" />}
+                  <span className="font-mono text-xs">{item.label}</span>
+
+                  {isActive && (
+                    <ChevronRight size={12} className="ml-auto opacity-60" />
+                  )}
                 </button>
               );
             })}
           </nav>
-      
-          {/* Footer sidebar - always visible at bottom */}
-          <div className="p-4 border-t border-border space-y-3 flex-shrink-0">
-            <div>
-              <p className="font-mono text-[10px] text-muted-foreground uppercase tracking-widest mb-0.5">
-                {CONFIG.appName}
-              </p>
-              <p className="font-sans text-[11px] text-muted-foreground/70 leading-relaxed">
-                {CONFIG.appTagline}
-              </p>
-            </div>
+
+          {/* FOOTER */}
+          <div className="p-4 border-t border-border">
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground">
+              {CONFIG.appName}
+            </p>
+            <p className="text-[11px] text-muted-foreground">
+              {CONFIG.appTagline}
+            </p>
+
             <button
               onClick={handleLogout}
-              className="w-full flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors rounded-sm font-mono text-xs"
+              className="mt-3 w-full flex items-center gap-2 text-xs text-red-500 hover:bg-red-50 px-3 py-2 rounded-sm"
             >
-              <LogOut size={13} /> Keluar
+              <LogOut size={13} />
+              Logout
             </button>
           </div>
         </aside>
 
-        {/* ── Main Content ── */}
-        <main className="flex-1 overflow-y-auto p-6">
-          {/* Page header */}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <span className="font-mono text-[10px] tracking-widest uppercase">{CONFIG.appName}</span>
-                <ChevronRight size={11} />
-                <span className="font-mono text-[10px] tracking-widest uppercase" style={{ color: T.primary }}>
-                  {activeItem?.label ?? "Dashboard"}
-                </span>
-              </div>
-              <h1 className="font-mono font-black text-foreground text-2xl uppercase tracking-tight">
+        {/* MAIN */}
+        <main className="flex-1 p-6 overflow-y-auto">
+          {/* breadcrumb */}
+          <div className="mb-6">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>{CONFIG.appName}</span>
+              <ChevronRight size={10} />
+              <span className="text-primary">
                 {activeItem?.label ?? "Dashboard"}
-              </h1>
+              </span>
             </div>
+
+            <h1 className="text-2xl font-bold mt-1">
+              {activeItem?.label ?? "Dashboard"}
+            </h1>
           </div>
 
           {children}
