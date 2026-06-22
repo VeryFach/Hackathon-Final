@@ -136,3 +136,13 @@ async def analyze():
         prediction=prediction_data,
         prediction_next_value=next_value
     )
+
+# apps/ai-service/main.py
+@app.get("/collectors")
+async def get_collectors():
+    """Get collector data from CSV."""
+    try:
+        df = pd.read_csv('data/collectors.csv')
+        return df.to_dict('records')
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="data/collectors.csv not found")

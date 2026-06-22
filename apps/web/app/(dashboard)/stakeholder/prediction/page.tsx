@@ -1,3 +1,4 @@
+// apps/web/app/(dashboard)/stakeholder/prediction/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -18,7 +19,6 @@ import { Loader2, TrendingUp, Calendar, Database } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:8000";
 
-// Interface untuk data yang diterima dari API
 interface PredictionItem {
   bulan: string;
   total_value: number;
@@ -45,11 +45,18 @@ export default function PrediksiDanaPage() {
       const predictionData: PredictionItem[] = response.data.prediction || [];
       const next = response.data.prediction_next_value;
 
-      // Transform data untuk grafik
-      const realisasi = predictionData.filter((item) => item.type === "realisasi");
-      const prediksi = predictionData.filter((item) => item.type === "prediksi");
+      // --- Sederhanakan: hanya ambil 6 realisasi terakhir + 1 prediksi pertama ---
+      const realisasi = predictionData
+        .filter((item) => item.type === "realisasi")
+        .sort((a, b) => a.bulan.localeCompare(b.bulan))
+        .slice(-6); // ambil 6 bulan terakhir
 
-      // Gabungkan berdasarkan bulan
+      const prediksi = predictionData
+        .filter((item) => item.type === "prediksi")
+        .sort((a, b) => a.bulan.localeCompare(b.bulan))
+        .slice(0, 1); // ambil 1 prediksi pertama (bulan depan)
+
+      // Gabungkan realisasi dan prediksi
       const allItems = [...realisasi, ...prediksi];
       const monthMap = new Map<string, ChartDataItem>();
 
@@ -65,6 +72,21 @@ export default function PrediksiDanaPage() {
           entry.prediksi = item.total_value;
         }
       });
+
+      // 🔥 Tambahkan 1 bulan kosong setelah prediksi terakhir
+      const sortedKeys = Array.from(monthMap.keys()).sort();
+      const lastMonth = sortedKeys[sortedKeys.length - 1];
+      if (lastMonth) {
+        const [year, month] = lastMonth.split("-").map(Number);
+        let nextYear = year;
+        let nextMonth = month + 1;
+        if (nextMonth > 12) {
+          nextMonth = 1;
+          nextYear = year + 1;
+        }
+        const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
+        monthMap.set(nextMonthStr, { bulan: nextMonthStr, realisasi: null, prediksi: null });
+      }
 
       // Urutkan berdasarkan bulan
       const sortedData = Array.from(monthMap.values()).sort((a, b) =>
@@ -86,10 +108,10 @@ export default function PrediksiDanaPage() {
   }, []);
 
   // Hitung statistik
-  const totalMonths = chartData.length;
   const realisasiCount = chartData.filter((d) => d.realisasi !== null).length;
   const prediksiCount = chartData.filter((d) => d.prediksi !== null).length;
-  const lastMonth = chartData.length > 0 ? chartData[chartData.length - 1].bulan : "-";
+  const lastMonth =
+    chartData.length > 0 ? chartData[chartData.length - 1].bulan : "-";
 
   return (
     <div className="space-y-6 p-6">
@@ -208,24 +230,30 @@ export default function PrediksiDanaPage() {
                   formatter={(value: number) => [`Rp ${value.toLocaleString()} juta`, ""]}
                 />
                 <Legend />
+
+                {/* Garis Realisasi */}
                 <Line
                   type="monotone"
                   dataKey="realisasi"
                   stroke="#2563eb"
                   name="Realisasi"
-                  strokeWidth={2}
-                  dot={{ r: 4, fill: "#2563eb" }}
-                  activeDot={{ r: 6 }}
+                  strokeWidth={3}
+                  dot={{ r: 6, fill: "#2563eb" }}
+                  activeDot={{ r: 10 }}
+                  connectNulls={false}
                 />
+
+                {/* Garis Prediksi */}
                 <Line
                   type="monotone"
                   dataKey="prediksi"
                   stroke="#d97706"
                   name="Prediksi"
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  dot={{ r: 4, fill: "#d97706" }}
-                  activeDot={{ r: 6 }}
+                  strokeWidth={3}
+                  // strokeDasharray="8 4"
+                  dot={{ r: 6, fill: "#d97706" }}
+                  activeDot={{ r: 10 }}
+                  connectNulls={false}
                 />
               </LineChart>
             </ResponsiveContainer>
@@ -245,18 +273,23 @@ export default function PrediksiDanaPage() {
         <CardContent>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p>
-              Grafik di atas menunjukkan tren <span className="font-medium text-foreground">realisasi dana</span>{" "}
-              (garis biru) dari pembelian pengepul selama beberapa bulan terakhir, serta{" "}
-              <span className="font-medium text-foreground">prediksi</span> (garis oranye putus-putus)
-              untuk bulan mendatang.
+              Grafik di atas menunjukkan tren{" "}
+              <span className="font-medium text-foreground">realisasi dana</span>{" "}
+              (garis biru) dari pembelian pengepul selama beberapa bulan
+              terakhir, serta{" "}
+              <span className="font-medium text-foreground">prediksi</span>{" "}
+              (garis oranye putus-putus) untuk bulan mendatang.
             </p>
             <p>
-              Prediksi dihasilkan menggunakan model <span className="font-medium">Prophet</span> yang
-              mempelajari pola musiman dan tren dari data historis.
+              Prediksi dihasilkan menggunakan model{" "}
+              <span className="font-medium">Prophet</span> yang mempelajari pola
+              musiman dan tren dari data historis.
             </p>
             {nextValue !== null && (
               <p className="mt-2 p-3 bg-primary/5 border border-primary/20 rounded-md">
-                <span className="font-semibold">Perkiraan dana yang perlu disiapkan bulan depan:</span>{" "}
+                <span className="font-semibold">
+                  Perkiraan dana yang perlu disiapkan bulan depan:
+                </span>{" "}
                 <span className="text-primary font-bold text-lg">
                   Rp {nextValue.toLocaleString()} juta
                 </span>

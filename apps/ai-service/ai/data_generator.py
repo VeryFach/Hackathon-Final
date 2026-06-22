@@ -27,6 +27,26 @@ def generate_depositors(n=120, lat_center=-6.2088, lon_center=106.8456, radius=0
     })
     return depositors
 
+def generate_collectors(n=20, lat_center=-6.2088, lon_center=106.8456, radius=0.5):
+    """
+    Generate random collector locations.
+    """
+    lats = np.random.normal(lat_center, radius, n)
+    lons = np.random.normal(lon_center, radius, n)
+    lats = np.clip(lats, -6.8, -5.8)
+    lons = np.clip(lons, 106.0, 107.5)
+    
+    collectors = pd.DataFrame({
+        'id': [f'col_{i:03d}' for i in range(n)],
+        'nama': [f'Pengepul {chr(65+i)}' for i in range(n)],
+        'latitude': lats,
+        'longitude': lons,
+        'address': [f'Jl. Pengepul {i}' for i in range(n)],
+        'service_radius_km': np.random.uniform(5, 15, n).round(1),
+        'capacity_liter': np.random.randint(1000, 5000, n),
+    })
+    return collectors
+
 def generate_purchase_history(months=12, base=100, trend=50, seasonal_amp=10):
     """
     Generate monthly purchase history (in million Rupiah).
@@ -61,6 +81,12 @@ if __name__ == "__main__":
     depositors.to_csv('data/depositors.csv', index=False)
     print(f"✅ Generated {len(depositors)} depositors -> data/depositors.csv")
     print(depositors.head())
+    
+    # Generate collectors
+    collectors = generate_collectors(20)
+    collectors.to_csv('data/collectors.csv', index=False)
+    print(f"✅ Generated {len(collectors)} collectors -> data/collectors.csv")
+    print(collectors.head())
     
     # Generate purchase history
     history = generate_purchase_history(12)
