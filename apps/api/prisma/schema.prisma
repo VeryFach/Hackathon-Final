@@ -105,8 +105,8 @@ model OilSubmission {
   depositorId     String
   depositor       DepositorProfile @relation(fields: [depositorId], references: [id])
 
-  collectorId     String
-  collector       CollectorProfile @relation(fields: [collectorId], references: [id])
+  collectorId     String?
+  collector       CollectorProfile? @relation(fields: [collectorId], references: [id])
 
   batchItems      BatchItem[]
   payout          Payout?
