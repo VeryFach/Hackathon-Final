@@ -90,22 +90,31 @@ def load_purchase_history_from_db() -> pd.DataFrame:
     """
     Aggregates completed Payouts by calendar month.
     Returns a DataFrame with columns:
-        ds  (datetime, first day of the month)
-        y   (float, total payout amount in that month)
+        ds                  (datetime, first day of the month)
+        volume_liter        (float, actual purchased oil volume)
+        price_per_liter     (float, weighted effective purchase price)
+        y                   (float, total payout amount in that month)
 
-    This replaces purchase_history.csv and feeds directly into Prophet.
+    The forecast uses volume_liter and price_per_liter, then derives y from
+    forecast_volume * forecast_price. Keeping y preserves the frontend API.
 
     Logic:
       - Use Payout.amount where Payout.status = 'paid' and paid_at IS NOT NULL.
+      - Use OilSubmission.actual_liter as the purchased raw oil volume.
       - Truncate paid_at to the month boundary so Prophet sees monthly cadence.
     """
     query = text("""
         SELECT
-            DATE_TRUNC('month', p.paid_at)  AS ds,
-            SUM(p.amount)                   AS y
+            DATE_TRUNC('month', p.paid_at)                       AS ds,
+            SUM(os.actual_liter)                                  AS volume_liter,
+            SUM(p.amount) / NULLIF(SUM(os.actual_liter), 0)        AS price_per_liter,
+            SUM(p.amount)                                         AS y
         FROM payouts p
+        JOIN oil_submissions os ON os.id = p."submissionId"
         WHERE p.status = 'paid'
           AND p.paid_at IS NOT NULL
+          AND os.actual_liter IS NOT NULL
+          AND os.actual_liter > 0
         GROUP BY DATE_TRUNC('month', p.paid_at)
         ORDER BY ds
     """)
@@ -116,6 +125,8 @@ def load_purchase_history_from_db() -> pd.DataFrame:
         logger.warning("No paid payout history found in database.")
         return df
 
+    df["volume_liter"] = df["volume_liter"].astype(float)
+    df["price_per_liter"] = df["price_per_liter"].astype(float)
     df["y"] = df["y"].astype(float)
     logger.info("Loaded %d months of payout history from database.", len(df))
     return df
@@ -152,24 +163,29 @@ def load_submission_volumes_from_db() -> dict[str, float]:
 
 def load_batch_value_history_from_db() -> pd.DataFrame:
     """
-    Monthly total_value from approved BatchPricings.
+    Monthly volume, price, and total value from approved BatchPricings.
     Use this as an *alternative* to payout history if payouts are sparse.
 
-    Returns DataFrame with columns: ds, y
+    Returns DataFrame with columns: ds, volume_liter, price_per_liter, y
     """
     query = text("""
         SELECT
-            DATE_TRUNC('month', b.created_at)   AS ds,
-            SUM(bp.total_value)                 AS y
+            DATE_TRUNC('month', b.created_at)                         AS ds,
+            SUM(b.total_raw_oil_liter)                                 AS volume_liter,
+            SUM(bp.total_value) / NULLIF(SUM(b.total_raw_oil_liter), 0) AS price_per_liter,
+            SUM(bp.total_value)                                        AS y
         FROM batch_pricings bp
         JOIN batches b ON b.id = bp."batchId"
         WHERE b.status = 'approved'
+          AND b.total_raw_oil_liter > 0
         GROUP BY DATE_TRUNC('month', b.created_at)
         ORDER BY ds
     """)
     with get_db_connection() as conn:
         df = pd.read_sql(query, conn, parse_dates=["ds"])
 
+    df["volume_liter"] = df["volume_liter"].astype(float)
+    df["price_per_liter"] = df["price_per_liter"].astype(float)
     df["y"] = df["y"].astype(float)
     logger.info("Loaded %d months of batch value history from database.", len(df))
     return df

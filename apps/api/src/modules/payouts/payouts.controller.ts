@@ -5,6 +5,7 @@ import {
   Patch,
   Post,
   UseGuards,
+  Body,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -26,6 +27,17 @@ import { UserRole } from '@prisma/client';
 @Controller('payouts')
 export class PayoutsController {
   constructor(private readonly payoutsService: PayoutsService) {}
+
+  @Post('training/add')
+  @Roles(UserRole.stakeholder)
+  @ApiOperation({ summary: 'Add training data for AI model (date, volume, price)' })
+  @ApiResponse({ status: 201, description: 'Training data payout created' })
+  @ApiResponse({ status: 400, description: 'Invalid input data' })
+  addTrainingData(
+    @Body() dto: { paidAt: string; volume_liter: number; price_per_liter: number }
+  ) {
+    return this.payoutsService.addTrainingData(dto);
+  }
 
   @Post(':submissionId')
   @Roles(UserRole.stakeholder)

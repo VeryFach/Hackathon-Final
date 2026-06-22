@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect } from "react";
 import axios from "axios";
+import { api } from "@/lib/axios";
 import {
   LineChart,
   Line,
@@ -42,6 +43,8 @@ interface PredictionItem {
   bulan: string;
   total_value: number;
   type: "realisasi" | "prediksi";
+  volume_liter?: number;
+  price_per_liter?: number;
 }
 
 interface ChartDataItem {
@@ -58,10 +61,13 @@ export default function PrediksiDanaPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State untuk form tambah data
-  const [newBulan, setNewBulan] = useState("");
-  const [newValue, setNewValue] = useState("");
+  // State untuk form tambah data training
+  const [newDate, setNewDate] = useState("");
+  const [newVolume, setNewVolume] = useState("");
+  const [newPrice, setNewPrice] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [addDataLoading, setAddDataLoading] = useState(false);
+  const [addDataError, setAddDataError] = useState<string | null>(null);
 
   const processData = (data: PredictionItem[]) => {
     // --- Ambil 6 realisasi terakhir + 1 prediksi pertama ---
@@ -124,54 +130,35 @@ export default function PrediksiDanaPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API_URL}/predict-fund`);
-      const predictionData: PredictionItem[] = response.data.prediction || [];
+      const response = await axios.get(`${API_URL}/analyze?refresh=true`);
+      const predictionData: PredictionItem[] = (response.data.prediction || []).map(
+        (item: any) => ({
+          bulan: item.bulan,
+          total_value: item.total_value,
+          type: item.type,
+          volume_liter: item.volume_liter,
+          price_per_liter: item.price_per_liter,
+        })
+      );
       setServerData(predictionData);
       const allData = [...predictionData, ...localData];
       processData(allData);
     } catch (err: any) {
       console.error("❌ Error fetching prediction data:", err);
-      setError(err.message || "Gagal mengambil data prediksi");
+      setError(err?.message || "Gagal mengambil data prediksi");
     } finally {
       setLoading(false);
     }
   };
 
-  // 🔥 Set default bulan ke bulan setelah data terakhir
+  // 🔥 Set default date ke hari ini
   useEffect(() => {
-    if (chartData.length === 0) {
-      // Default ke bulan sekarang
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      setNewBulan(`${year}-${month}`);
-      return;
-    }
-
-    // Ambil bulan terakhir yang memiliki data (realisasi atau prediksi)
-    const nonEmptyMonths = chartData
-      .filter(d => d.realisasi !== null || d.prediksi !== null)
-      .map(d => d.bulan);
-    
-    if (nonEmptyMonths.length === 0) {
-      const now = new Date();
-      const year = now.getFullYear();
-      const month = String(now.getMonth() + 1).padStart(2, "0");
-      setNewBulan(`${year}-${month}`);
-      return;
-    }
-
-    const lastMonth = nonEmptyMonths[nonEmptyMonths.length - 1];
-    const [year, month] = lastMonth.split("-").map(Number);
-    let nextYear = year;
-    let nextMonth = month + 1;
-    if (nextMonth > 12) {
-      nextMonth = 1;
-      nextYear = year + 1;
-    }
-    const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
-    setNewBulan(nextMonthStr);
-  }, [chartData]);
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, "0");
+    const day = String(today.getDate()).padStart(2, "0");
+    setNewDate(`${year}-${month}-${day}`);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -186,34 +173,87 @@ export default function PrediksiDanaPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localData]);
 
-  const handleAddData = () => {
-    if (!newBulan || !newValue) {
-      alert("Silakan isi bulan dan nilai!");
-      return;
-    }
-    const value = parseFloat(newValue);
-    if (isNaN(value) || value < 0) {
-      alert("Nilai harus berupa angka positif!");
-      return;
-    }
-
-    // Cek apakah bulan sudah ada di localData atau serverData sebagai realisasi
-    const allExisting = [...serverData, ...localData];
-    if (allExisting.some((item) => item.bulan === newBulan && item.type === "realisasi")) {
-      alert(`Data realisasi untuk bulan ${newBulan} sudah ada!`);
+  const handleAddData = async () => {
+    setAddDataError(null);
+    
+    // Validate inputs
+    if (!newDate || !newVolume || !newPrice) {
+      setAddDataError("Silakan isi tanggal, volume, dan harga!");
       return;
     }
 
-    const newItem: PredictionItem = {
-      bulan: newBulan,
-      total_value: value,
-      type: "realisasi",
-    };
+    const volume = parseFloat(newVolume);
+    const price = parseFloat(newPrice);
 
-    setLocalData((prev) => [...prev, newItem]);
-    setNewBulan("");
-    setNewValue("");
-    setDialogOpen(false);
+    if (isNaN(volume) || volume <= 0) {
+      setAddDataError("Volume harus berupa angka positif!");
+      return;
+    }
+
+    if (isNaN(price) || price <= 0) {
+      setAddDataError("Harga harus berupa angka positif!");
+      return;
+    }
+
+    // Validate date is not in future
+    const inputDate = new Date(newDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (inputDate > today) {
+      setAddDataError("Tanggal tidak boleh di masa depan!");
+      return;
+    }
+
+    try {
+      setAddDataLoading(true);
+
+      // Call backend endpoint to insert training data
+      const response = await api.post(
+        "/payouts/training/add",
+        {
+          paidAt: newDate,
+          volume_liter: volume,
+          price_per_liter: price,
+        }
+      );
+
+      // Calculate month string for display (YYYY-MM format)
+      const date = new Date(newDate);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const monthStr = `${year}-${month}`;
+
+      // Add to local state with calculated total_value
+      const totalValue = volume * price;
+      const newItem: PredictionItem = {
+        bulan: monthStr,
+        total_value: totalValue,
+        type: "realisasi",
+        volume_liter: volume,
+        price_per_liter: price,
+      };
+
+      setLocalData((prev) => [...prev, newItem]);
+
+      // Reset form
+      setNewDate("");
+      setNewVolume("");
+      setNewPrice("");
+      setDialogOpen(false);
+
+      // Refresh data from AI service to update predictions
+      await fetchData();
+    } catch (err: any) {
+      console.error("❌ Error adding training data:", err);
+      setAddDataError(
+        err?.response?.data?.message ||
+        err?.message ||
+        "Gagal menyimpan data training"
+      );
+    } finally {
+      setAddDataLoading(false);
+    }
   };
 
   const handleDeleteData = (bulan: string) => {
@@ -228,25 +268,6 @@ export default function PrediksiDanaPage() {
   const prediksiCount = chartData.filter((d) => d.prediksi !== null).length;
   const lastMonth =
     chartData.length > 0 ? chartData[chartData.length - 1].bulan : "-";
-
-  // Cek apakah newBulan adalah bulan setelah data terakhir (untuk info tooltip)
-  const isNextMonth = (() => {
-    if (chartData.length === 0) return false;
-    const nonEmptyMonths = chartData
-      .filter(d => d.realisasi !== null || d.prediksi !== null)
-      .map(d => d.bulan);
-    if (nonEmptyMonths.length === 0) return false;
-    const lastMonth = nonEmptyMonths[nonEmptyMonths.length - 1];
-    const [year, month] = lastMonth.split("-").map(Number);
-    let nextYear = year;
-    let nextMonth = month + 1;
-    if (nextMonth > 12) {
-      nextMonth = 1;
-      nextYear = year + 1;
-    }
-    const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
-    return newBulan === nextMonthStr;
-  })();
 
   return (
     <div className="space-y-6 p-6">
@@ -276,7 +297,7 @@ export default function PrediksiDanaPage() {
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             ) : nextValue !== null ? (
               <div className="text-2xl font-bold text-primary">
-                Rp {nextValue.toLocaleString()}
+                Rp {nextValue.toLocaleString('id-ID')}
                 <span className="text-sm font-normal text-muted-foreground ml-1">juta</span>
               </div>
             ) : (
@@ -362,7 +383,7 @@ export default function PrediksiDanaPage() {
                     borderRadius: "var(--radius)",
                     color: "var(--foreground)",
                   }}
-                  formatter={(value: number) => [`Rp ${value.toLocaleString()} juta`, ""]}
+                  formatter={(value: number) => [`Rp ${value.toLocaleString('id-ID')} juta`, ""]}
                 />
                 <Legend />
 
@@ -410,52 +431,76 @@ export default function PrediksiDanaPage() {
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Tambah Data Realisasi</DialogTitle>
+                <DialogTitle>Tambah Data Training</DialogTitle>
                 <DialogDescription>
-                  Masukkan bulan dan nilai realisasi baru. 
-                  Bulan akan diisi otomatis dengan bulan setelah data terakhir.
+                  Masukkan tanggal, volume (liter), dan harga per liter untuk menambah data pelatihan model AI.
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="bulan" className="text-right">
-                    Bulan
-                  </Label>
-                  <div className="col-span-3 relative">
-                    <Input
-                      id="bulan"
-                      placeholder="YYYY-MM"
-                      value={newBulan}
-                      onChange={(e) => setNewBulan(e.target.value)}
-                      className={isNextMonth ? "border-primary/50 bg-primary/5" : ""}
-                    />
-                    {isNextMonth && (
-                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary">
-                        <Info className="h-4 w-4 inline mr-1" />
-                        bulan setelah data terakhir
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 items-center gap-4">
-                  <Label htmlFor="nilai" className="text-right">
-                    Nilai (juta)
+                  <Label htmlFor="date" className="text-right">
+                    Tanggal
                   </Label>
                   <Input
-                    id="nilai"
-                    type="number"
-                    placeholder="100"
-                    value={newValue}
-                    onChange={(e) => setNewValue(e.target.value)}
+                    id="date"
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
                     className="col-span-3"
                   />
                 </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="volume" className="text-right">
+                    Volume (L)
+                  </Label>
+                  <Input
+                    id="volume"
+                    type="number"
+                    step="0.01"
+                    placeholder="1000"
+                    value={newVolume}
+                    onChange={(e) => setNewVolume(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="price" className="text-right">
+                    Harga/L
+                  </Label>
+                  <Input
+                    id="price"
+                    type="number"
+                    step="0.01"
+                    placeholder="2500"
+                    value={newPrice}
+                    onChange={(e) => setNewPrice(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+                {addDataError && (
+                  <div className="col-span-4 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                    {addDataError}
+                  </div>
+                )}
               </div>
               <DialogFooter>
-                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setDialogOpen(false);
+                    setAddDataError(null);
+                  }}
+                  disabled={addDataLoading}
+                >
                   Batal
                 </Button>
-                <Button onClick={handleAddData}>Tambah</Button>
+                <Button 
+                  onClick={handleAddData}
+                  disabled={addDataLoading}
+                >
+                  {addDataLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {addDataLoading ? "Menyimpan..." : "Simpan"}
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -474,6 +519,8 @@ export default function PrediksiDanaPage() {
                     <TableHead className="font-mono text-xs">Bulan</TableHead>
                     <TableHead className="font-mono text-xs text-right">Realisasi (juta)</TableHead>
                     <TableHead className="font-mono text-xs text-right">Prediksi (juta)</TableHead>
+                    <TableHead className="font-mono text-xs text-right">Volume (L)</TableHead>
+                    <TableHead className="font-mono text-xs text-right">Harga/L</TableHead>
                     <TableHead className="font-mono text-xs text-center">Keterangan</TableHead>
                     <TableHead className="font-mono text-xs text-center">Aksi</TableHead>
                   </TableRow>
@@ -498,10 +545,16 @@ export default function PrediksiDanaPage() {
                       <TableRow key={index} className={isLocal ? "bg-primary/5" : ""}>
                         <TableCell className="font-mono text-sm">{item.bulan}</TableCell>
                         <TableCell className="text-right font-mono">
-                          {item.type === "realisasi" ? item.total_value.toLocaleString() : "-"}
+                          {item.type === "realisasi" ? item.total_value.toLocaleString('id-ID') : "-"}
                         </TableCell>
                         <TableCell className="text-right font-mono">
-                          {item.type === "prediksi" ? item.total_value.toLocaleString() : "-"}
+                          {item.type === "prediksi" ? item.total_value.toLocaleString('id-ID') : "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {item.volume_liter ? item.volume_liter.toLocaleString('id-ID', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono text-sm">
+                          {item.price_per_liter ? `Rp ${item.price_per_liter.toLocaleString('id-ID')}` : "-"}
                         </TableCell>
                         <TableCell className={`text-center text-xs font-medium ${statusColor}`}>
                           {status}
@@ -557,7 +610,7 @@ export default function PrediksiDanaPage() {
                   Perkiraan dana yang perlu disiapkan bulan depan:
                 </span>{" "}
                 <span className="text-primary font-bold text-lg">
-                  Rp {nextValue.toLocaleString()} juta
+                  Rp {nextValue.toLocaleString('id-ID')} juta
                 </span>
               </p>
             )}

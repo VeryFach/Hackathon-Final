@@ -4,7 +4,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { BatchStatus, OilGrade } from '@prisma/client';
+import {
+  BatchStatus,
+  OilGrade,
+  PayoutStatus,
+  SubmissionStatus,
+} from '@prisma/client';
 import type {
   ICreatePricingDto,
   ICreateGradeRuleDto,
@@ -203,7 +208,14 @@ export class PricingService {
     }
 
     // Step 7: Get clean oil volume
+    const totalRawOilLiter = Number(batch.totalRawOilLiter);
     const cleanOil = Number(batch.totalCleanOilLiter);
+
+    if (totalRawOilLiter <= 0) {
+      throw new BadRequestException(
+        'Batch has no raw oil volume. Cannot calculate depositor payouts.',
+      );
+    }
 
     if (cleanOil <= 0) {
       throw new BadRequestException(
@@ -238,14 +250,75 @@ export class PricingService {
     // totalValue = cleanOil * finalPricePerLiter
     const totalValue = cleanOil * finalPricePerLiter;
 
-    // Step 10: Save BatchPricing
-    return this.prisma.batchPricing.create({
-      data: {
-        batchId,
-        pricingId: activePricing.id,
-        finalPricePerLiter,
-        totalValue,
-      },
+    // Step 10: Save BatchPricing and settle depositor payouts.
+    return this.prisma.$transaction(async (tx) => {
+      const batchPricing = await tx.batchPricing.create({
+        data: {
+          batchId,
+          pricingId: activePricing.id,
+          finalPricePerLiter,
+          totalValue,
+        },
+      });
+
+      const batchItems = await tx.batchItem.findMany({
+        where: { batchId },
+        include: {
+          submission: {
+            select: {
+              id: true,
+              actualLiter: true,
+            },
+          },
+        },
+      });
+
+      const paidAt = new Date();
+      const payouts = [];
+
+      for (const item of batchItems) {
+        const actualLiter = item.submission.actualLiter ?? 0;
+
+        if (actualLiter <= 0) {
+          throw new BadRequestException(
+            `Submission "${item.submission.id}" must have actual liter greater than 0 before payout can be settled.`,
+          );
+        }
+
+        const submissionRatio = actualLiter / totalRawOilLiter;
+        const amount = totalValue * submissionRatio;
+
+        const payout = await tx.payout.upsert({
+          where: { submissionId: item.submission.id },
+          create: {
+            submissionId: item.submission.id,
+            amount,
+            status: PayoutStatus.paid,
+            paidAt,
+          },
+          update: {
+            amount,
+            status: PayoutStatus.paid,
+            paidAt,
+          },
+        });
+
+        payouts.push(payout);
+      }
+
+      await tx.oilSubmission.updateMany({
+        where: {
+          id: {
+            in: batchItems.map((item) => item.submission.id),
+          },
+        },
+        data: { status: SubmissionStatus.completed },
+      });
+
+      return {
+        ...batchPricing,
+        payouts,
+      };
     });
   }
 

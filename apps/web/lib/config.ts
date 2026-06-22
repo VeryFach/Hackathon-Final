@@ -17,8 +17,8 @@ import {
 } from "lucide-react";
 
 export const CONFIG = {
-  appName: "Ngepulin",
-  appTagline: "Tagline singkat",
+  appName: "Eco-Oil",
+  appTagline: "Less Waste, More Value",
 
   // Tab navigasi sidebar — tambah/hapus sesuai fitur
   navItems: {

@@ -27,6 +27,8 @@ class PredictionData(BaseModel):
     bulan: str
     total_value: float
     type: str
+    volume_liter: Optional[float] = None
+    price_per_liter: Optional[float] = None
 
 class AIResponse(BaseModel):
     recommendations: List[LocationRecommendation]

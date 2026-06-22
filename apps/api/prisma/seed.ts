@@ -26,6 +26,18 @@ const getRandomItem = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.len
 const getRandomFloat = (min: number, max: number) => parseFloat((Math.random() * (max - min) + min).toFixed(2));
 const getRandomInt = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+const getMonthStart = (monthsAgo: number) => {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() - monthsAgo, 1, 12, 0, 0, 0);
+};
+
+const getRandomPaidDateInMonth = (monthStart: Date) => {
+  const day = getRandomInt(5, 25);
+  return new Date(monthStart.getFullYear(), monthStart.getMonth(), day, 12, 0, 0, 0);
+};
+
+const historyMonths = Array.from({ length: 12 }, (_, idx) => getMonthStart(11 - idx));
+
 // Data dummy untuk nama-nama
 const firstNames = ['Budi', 'Siti', 'Andi', 'Joko', 'Ayu', 'Rudi', 'Rina', 'Agus', 'Dewi', 'Hendra', 'Maya', 'Eko', 'Dian', 'Faisal', 'Nina', 'Gilang', 'Putri', 'Reza', 'Tari', 'Wahyu'];
 const lastNames = ['Setiawan', 'Aminah', 'Pratama', 'Saputra', 'Wulandari', 'Kurniawan', 'Sari', 'Wijaya', 'Lestari', 'Nugroho', 'Hidayat', 'Siregar', 'Ramadhan', 'Kusuma', 'Santoso'];
@@ -257,13 +269,14 @@ async function main() {
 
       // Payouts
       for (const item of batchItemsSubset) {
-        const isPaid = Math.random() > 0.5; // 50% paid
+        const isPaid = Math.random() > 0.3; // 70% paid
+        const paidDate = isPaid ? getRandomPaidDateInMonth(getRandomItem(historyMonths)) : null;
         await prisma.payout.create({
           data: {
             submissionId: item.id,
             amount: item.actualLiter * finalPricePerLiter,
             status: isPaid ? PayoutStatus.paid : PayoutStatus.pending,
-            paidAt: isPaid ? new Date() : null,
+            paidAt: paidDate,
           }
         });
       }
