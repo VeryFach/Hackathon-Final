@@ -11,7 +11,7 @@ import { SubmissionStatus } from '@prisma/client';
 // ── Mock Prisma ──────────────────────────────────────────────────────────────
 const mockPrisma = {
   depositorProfile: { findUnique: jest.fn() },
-  collectorProfile: { findUnique: jest.fn() },
+  collectorProfile: { create: jest.fn(), findUnique: jest.fn() },
   oilSubmission: {
     create: jest.fn(),
     findUnique: jest.fn(),
@@ -55,6 +55,7 @@ describe('SubmissionsService', () => {
     // Default successful mock returns
     mockPrisma.depositorProfile.findUnique.mockResolvedValue(makeDepositorProfile());
     mockPrisma.collectorProfile.findUnique.mockResolvedValue(makeCollectorProfile());
+    mockPrisma.collectorProfile.create.mockResolvedValue(makeCollectorProfile());
     mockPrisma.oilSubmission.findUnique.mockResolvedValue(makeSubmission());
     mockPrisma.batch.findUnique.mockResolvedValue({ id: 'batch-1' });
 
@@ -121,11 +122,11 @@ describe('SubmissionsService', () => {
       expect(result).toHaveLength(2);
     });
 
-    it('should throw NotFoundException if depositor profile not found', async () => {
+    it('should return an empty list if depositor profile is not found', async () => {
       mockPrisma.depositorProfile.findUnique.mockResolvedValue(null);
 
-      await expect(service.findMine('no-user'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.findMine('no-user')).resolves.toEqual([]);
+      expect(mockPrisma.oilSubmission.findMany).not.toHaveBeenCalled();
     });
   });
 
@@ -162,11 +163,25 @@ describe('SubmissionsService', () => {
         .rejects.toThrow(BadRequestException);
     });
 
-    it('should throw NotFoundException if collector profile not found', async () => {
+    it('should create a minimal collector profile if missing', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(null);
+      mockPrisma.oilSubmission.update.mockResolvedValue(
+        makeSubmission({ status: SubmissionStatus.accepted, collectorId: 'col-1' }),
+      );
 
-      await expect(service.accept('sub-1', 'no-col'))
-        .rejects.toThrow(NotFoundException);
+      await expect(service.accept('sub-1', 'no-col')).resolves.toEqual(
+        expect.objectContaining({ status: SubmissionStatus.accepted }),
+      );
+      expect(mockPrisma.collectorProfile.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'no-col',
+          latitude: '0',
+          longitude: '0',
+          warehouseAddress: 'Belum diatur',
+          serviceRadiusKm: 0,
+          capacityLiter: 0,
+        },
+      });
     });
   });
 

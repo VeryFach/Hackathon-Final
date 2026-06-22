@@ -41,7 +41,7 @@ export class BatchesController {
   constructor(private readonly batchesService: BatchesService) {}
 
   @Post()
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Create a new empty batch' })
   @ApiBody({
     schema: {
@@ -61,7 +61,7 @@ export class BatchesController {
   }
 
   @Get('me')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Get batches owned by current collector' })
   @ApiResponse({ status: 200, description: 'Collector batches returned' })
   findMine(@GetUser('id') userId: string) {
@@ -69,7 +69,7 @@ export class BatchesController {
   }
 
   @Get()
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Get all batches for stakeholder review' })
   @ApiResponse({ status: 200, description: 'All batches returned' })
   findAllForStakeholder() {
@@ -77,7 +77,7 @@ export class BatchesController {
   }
 
   @Post(':id/items')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Add submissions into batch' })
   @ApiParam({ name: 'id', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiBody({
@@ -107,7 +107,7 @@ export class BatchesController {
   }
 
   @Patch(':id/process')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Process batch calculations' })
   @ApiParam({ name: 'id', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiBody({
@@ -133,7 +133,7 @@ export class BatchesController {
   }
 
   @Patch(':id/send')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Mark batch as sent to refinery' })
   @ApiParam({ name: 'id', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 200, description: 'Batch marked as sent' })
@@ -148,7 +148,7 @@ export class BatchesController {
   }
 
   @Get(':id')
-  @Roles('pengepul', 'stakeholder')
+  @Roles(UserRole.pengepul, UserRole.stakeholder)
   @ApiOperation({ summary: 'Get full batch detail' })
   @ApiParam({ name: 'id', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 200, description: 'Batch detail returned' })

@@ -16,15 +16,47 @@ import {
 export class SubmissionsService {
   constructor(private prisma: PrismaService) {}
 
+  private async getOrCreateCollectorProfile(userId: string) {
+    const collectorProfile = await this.prisma.collectorProfile.findUnique({
+      where: { userId },
+    });
+
+    if (collectorProfile) {
+      return collectorProfile;
+    }
+
+    return this.prisma.collectorProfile.create({
+      data: {
+        userId,
+        latitude: '0',
+        longitude: '0',
+        warehouseAddress: 'Belum diatur',
+        serviceRadiusKm: 0,
+        capacityLiter: 0,
+      },
+    });
+  }
+
   async create(userId: string, dto: ICreateSubmissionDto) {
-    const depositorProfile = await this.prisma.depositorProfile.findUnique({
+    let depositorProfile = await this.prisma.depositorProfile.findUnique({
       where: { userId },
     });
 
     if (!depositorProfile) {
-      throw new NotFoundException(
-        'Depositor profile not found. Please create your depositor profile first.',
-      );
+      if (!dto.latitude || !dto.longitude || !dto.address) {
+        throw new NotFoundException(
+          'Depositor profile not found. Please provide pickup location first.',
+        );
+      }
+
+      depositorProfile = await this.prisma.depositorProfile.create({
+        data: {
+          userId,
+          latitude: dto.latitude,
+          longitude: dto.longitude,
+          address: dto.address,
+        },
+      });
     }
 
     const submission = await this.prisma.oilSubmission.create({
@@ -44,7 +76,7 @@ export class SubmissionsService {
     });
 
     if (!depositorProfile) {
-      throw new NotFoundException('Depositor profile not found.');
+      return [];
     }
 
     return this.prisma.oilSubmission.findMany({
@@ -80,6 +112,40 @@ export class SubmissionsService {
         },
       },
       orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async findForCollector(userId: string) {
+    const collectorProfile = await this.prisma.collectorProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!collectorProfile) {
+      return [];
+    }
+
+    return this.prisma.oilSubmission.findMany({
+      where: { collectorId: collectorProfile.id },
+      include: {
+        depositor: {
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        },
+        collector: {
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        },
+        batchItems: {
+          include: {
+            batch: {
+              include: {
+                labResult: true,
+                batchPricing: true,
+              },
+            },
+          },
+        },
+        payout: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
   }
 
@@ -127,15 +193,7 @@ export class SubmissionsService {
   }
 
   async accept(submissionId: string, userId: string) {
-    const collectorProfile = await this.prisma.collectorProfile.findUnique({
-      where: { userId },
-    });
-
-    if (!collectorProfile) {
-      throw new NotFoundException(
-        'Collector profile not found. Please create your collector profile first.',
-      );
-    }
+    const collectorProfile = await this.getOrCreateCollectorProfile(userId);
 
     const submission = await this.prisma.oilSubmission.findUnique({
       where: { id: submissionId },

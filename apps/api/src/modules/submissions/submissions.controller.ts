@@ -26,6 +26,7 @@ import {
   MarkInBatchSchema,
   RecordActualLiterSchema,
 } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 import type {
   ICreateSubmissionDto,
   IMarkInBatchDto,
@@ -40,7 +41,7 @@ export class SubmissionsController {
   constructor(private readonly submissionsService: SubmissionsService) {}
 
   @Post()
-  @Roles('masyarakat')
+  @Roles(UserRole.masyarakat)
   @ApiOperation({ summary: 'Create a new oil submission' })
   @ApiBody({
     schema: {
@@ -62,7 +63,7 @@ export class SubmissionsController {
   }
 
   @Get('me')
-  @Roles('masyarakat')
+  @Roles(UserRole.masyarakat)
   @ApiOperation({ summary: 'Get all submissions for the current user' })
   @ApiResponse({ status: 200, description: 'Returns user submissions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -71,15 +72,23 @@ export class SubmissionsController {
   }
 
   @Get('pending')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Get pending submissions available for collectors' })
   @ApiResponse({ status: 200, description: 'Returns pending submissions' })
   findPending() {
     return this.submissionsService.findPending();
   }
 
+  @Get('collector')
+  @Roles(UserRole.pengepul)
+  @ApiOperation({ summary: 'Get submissions assigned to the current collector' })
+  @ApiResponse({ status: 200, description: 'Returns collector submissions' })
+  findForCollector(@GetUser('id') userId: string) {
+    return this.submissionsService.findForCollector(userId);
+  }
+
   @Get(':id')
-  @Roles('masyarakat')
+  @Roles(UserRole.masyarakat)
   @ApiOperation({ summary: 'Get submission by ID' })
   @ApiParam({ name: 'id', description: 'Submission ID', example: 'sub-uuid-here' })
   @ApiResponse({ status: 200, description: 'Returns submission details' })
@@ -93,7 +102,7 @@ export class SubmissionsController {
   }
 
   @Patch(':id/accept')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Accept a pending submission' })
   @ApiResponse({ status: 200, description: 'Submission accepted' })
   @ApiResponse({ status: 400, description: 'Invalid submission status' })
@@ -106,7 +115,7 @@ export class SubmissionsController {
   }
 
   @Patch(':id/pickup')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Mark submission as picked up' })
   @ApiResponse({ status: 200, description: 'Submission picked up' })
   @ApiResponse({ status: 400, description: 'Invalid submission status' })
@@ -120,7 +129,7 @@ export class SubmissionsController {
   }
 
   @Patch(':id/actual-liter')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Record measured actual liter after pickup' })
   @ApiParam({ name: 'id', description: 'Submission ID', example: 'sub-uuid-here' })
   @ApiBody({
@@ -145,7 +154,7 @@ export class SubmissionsController {
   }
 
   @Patch(':id/in-batch')
-  @Roles('pengepul')
+  @Roles(UserRole.pengepul)
   @ApiOperation({ summary: 'Assign submission to a batch' })
   @ApiParam({ name: 'id', description: 'Submission ID', example: 'sub-uuid-here' })
   @ApiBody({

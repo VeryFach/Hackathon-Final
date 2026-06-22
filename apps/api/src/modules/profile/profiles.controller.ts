@@ -9,6 +9,8 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags, ApiOperation } from '@nestjs/swagger';
 import { JwtGuard } from '../auth/guard/jwt.guard';
+import { RolesGuard } from '../auth/guard/roles.guard';
+import { Roles } from '../auth/decorator/roles.decorator';
 import { ProfilesService } from './profiles.service';
 import {
     CreateDepositorProfileDto,
@@ -23,10 +25,11 @@ import {
     UpdateCollectorProfileSchema,
     UpdateDepositorProfileSchema,
 } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
-@UseGuards(JwtGuard)
+@UseGuards(JwtGuard, RolesGuard)
 @Controller('profiles')
 export class ProfilesController {
     constructor(private readonly profilesService: ProfilesService) { }
@@ -34,6 +37,7 @@ export class ProfilesController {
     // ----- DEPOSITOR -----
 
     @Post('depositor')
+    @Roles(UserRole.masyarakat)
     @ApiOperation({ summary: 'Create depositor profile (for masyarakat)' })
     createDepositorProfile(
         @Request() req: any,
@@ -44,6 +48,7 @@ export class ProfilesController {
     }
 
     @Patch('depositor')
+    @Roles(UserRole.masyarakat)
     @ApiOperation({ summary: 'Update depositor profile (location/address)' })
     updateDepositorProfile(
         @Request() req: any,
@@ -54,6 +59,7 @@ export class ProfilesController {
     }
 
     @Get('depositor')
+    @Roles(UserRole.masyarakat)
     @ApiOperation({ summary: 'Get depositor profile' })
     getDepositorProfile(@Request() req: any) {
         const userId = req.user.sub;
@@ -63,6 +69,7 @@ export class ProfilesController {
     // ----- COLLECTOR -----
 
     @Post('collector')
+    @Roles(UserRole.pengepul)
     @ApiOperation({ summary: 'Create collector profile (for pengepul)' })
     createCollectorProfile(
         @Request() req: any,
@@ -73,6 +80,7 @@ export class ProfilesController {
     }
 
     @Patch('collector')
+    @Roles(UserRole.pengepul)
     @ApiOperation({ summary: 'Update collector profile (warehouse, radius, capacity)' })
     updateCollectorProfile(
         @Request() req: any,
@@ -83,6 +91,7 @@ export class ProfilesController {
     }
 
     @Get('collector')
+    @Roles(UserRole.pengepul)
     @ApiOperation({ summary: 'Get collector profile' })
     getCollectorProfile(@Request() req: any) {
         const userId = req.user.sub;

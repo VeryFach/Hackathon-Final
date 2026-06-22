@@ -2,6 +2,10 @@ import { z } from 'zod';
 
 export const CreateSubmissionSchema = z.object({
   estimatedLiter: z.number().positive('Estimated liter must be greater than 0'),
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  address: z.string().optional(),
+  notes: z.string().optional(),
 });
 
 export const MarkInBatchSchema = z.object({

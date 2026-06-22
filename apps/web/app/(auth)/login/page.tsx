@@ -6,7 +6,8 @@ import { useForm } from "react-hook-form";
 import { User, Lock, Eye, EyeOff, AlertTriangle } from "lucide-react";
 import { T } from "@/lib/design-tokens";
 import { CONFIG } from "@/lib/config";
-import { api } from "@/lib/axios";
+import { authService } from "@/lib/api/auth";
+import { getRoleHome } from "@/lib/auth-storage";
 
 type LoginFormValues = {
   email: string;
@@ -33,13 +34,8 @@ export default function LoginPage() {
     setApiError("");
 
     try {
-      await api.post("/auth/login", data, {
-        headers: {
-          accept: "*/*",
-        },
-      });
-
-      router.push("/");
+      const auth = await authService.login(data);
+      router.replace(getRoleHome(auth.user.role));
     } catch (err: any) {
       const errorMessage =
         err.response?.data?.message ||

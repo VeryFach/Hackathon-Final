@@ -54,6 +54,7 @@ describe('BatchesService', () => {
   beforeEach(async () => {
     mockPrisma = {
       collectorProfile: {
+        create: jest.fn(),
         findUnique: jest.fn(),
       },
       batch: {
@@ -85,6 +86,7 @@ describe('BatchesService', () => {
   describe('create', () => {
     it('should create a new batch', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
+      mockPrisma.collectorProfile.create.mockResolvedValue(mockCollector);
       mockPrisma.batch.create.mockResolvedValue(mockBatch);
 
       const result = await service.create('user-1', {});
@@ -96,12 +98,22 @@ describe('BatchesService', () => {
       expect(result).toEqual(mockBatch);
     });
 
-    it('should throw NotFoundException if no collector profile', async () => {
+    it('should create a minimal collector profile if missing', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(null);
+      mockPrisma.collectorProfile.create.mockResolvedValue(mockCollector);
+      mockPrisma.batch.create.mockResolvedValue(mockBatch);
 
-      await expect(
-        service.create('user-1', {}),
-      ).rejects.toThrow(NotFoundException);
+      await expect(service.create('user-1', {})).resolves.toEqual(mockBatch);
+      expect(mockPrisma.collectorProfile.create).toHaveBeenCalledWith({
+        data: {
+          userId: 'user-1',
+          latitude: '0',
+          longitude: '0',
+          warehouseAddress: 'Belum diatur',
+          serviceRadiusKm: 0,
+          capacityLiter: 0,
+        },
+      });
     });
   });
 

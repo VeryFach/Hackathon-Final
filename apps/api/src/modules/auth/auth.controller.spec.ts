@@ -17,6 +17,7 @@ const mockAuthService = {
   register: jest.fn(),
   login: jest.fn(),
   googleLogin: jest.fn(),
+  getMe: jest.fn(),
 };
 
 const makeRegisterDto = (overrides = {}) => ({
@@ -54,7 +55,15 @@ describe('AuthController', () => {
 
   describe('register()', () => {
     it('should call authService.register, set a cookie, and return the token', async () => {
-      const tokenData = { access_token: 'jwt.token.here' };
+      const tokenData = {
+        access_token: 'jwt.token.here',
+        user: {
+          id: 'uuid-1',
+          email: 'alice@example.com',
+          fullName: 'Alice Wonderland',
+          role: 'masyarakat',
+        },
+      };
       mockAuthService.register.mockResolvedValue(tokenData);
 
       const dto = makeRegisterDto();
@@ -83,7 +92,15 @@ describe('AuthController', () => {
 
   describe('login()', () => {
     it('should call authService.login, set a cookie, and return the token', async () => {
-      const tokenData = { access_token: 'jwt.login.token' };
+      const tokenData = {
+        access_token: 'jwt.login.token',
+        user: {
+          id: 'uuid-1',
+          email: 'alice@example.com',
+          fullName: 'Alice Wonderland',
+          role: 'masyarakat',
+        },
+      };
       mockAuthService.login.mockResolvedValue(tokenData);
 
       const dto = makeLoginDto();
@@ -130,6 +147,23 @@ describe('AuthController', () => {
     });
   });
 
+  describe('getMe()', () => {
+    it('should return fresh user data for the authenticated user', async () => {
+      const user = {
+        id: 'uuid-1',
+        email: 'alice@example.com',
+        fullName: 'Alice Wonderland',
+        role: 'masyarakat',
+      };
+      mockAuthService.getMe.mockResolvedValue(user);
+
+      const result = await controller.getMe({ user: { sub: 'uuid-1' } });
+
+      expect(mockAuthService.getMe).toHaveBeenCalledWith('uuid-1');
+      expect(result).toEqual(user);
+    });
+  });
+
   describe('googleAuth()', () => {
     it('should be defined (guard handles the redirect to Google)', () => {
       // The GoogleGuard triggers the OAuth2 redirect; the controller body is
@@ -140,7 +174,15 @@ describe('AuthController', () => {
 
   describe('googleAuthRedirect()', () => {
     it('should call googleLogin, set cookie, and redirect to frontend', async () => {
-      const tokenData = { access_token: 'google.jwt.token' };
+      const tokenData = {
+        access_token: 'google.jwt.token',
+        user: {
+          id: 'uuid-1',
+          email: 'google@example.com',
+          fullName: 'Google User',
+          role: 'masyarakat',
+        },
+      };
       mockAuthService.googleLogin.mockResolvedValue(tokenData);
 
       const req = { user: { email: 'google@example.com' } };

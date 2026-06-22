@@ -6,22 +6,23 @@ import {
   Injectable,
   CanActivate,
   ExecutionContext,
-  HttpException,
-  HttpStatus,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
+import { UserRole } from '@prisma/client';
+import { ROLES_KEY } from '../decorator/roles.decorator.js';
 
 @Injectable()
 export class RolesGuard implements CanActivate {
   constructor(private reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    const requiredRoles = this.reflector.getAllAndOverride<string[]>('roles', [
+    const requiredRoles = this.reflector.getAllAndOverride<UserRole[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (!requiredRoles) {
+    if (!requiredRoles || requiredRoles.length === 0) {
       return true;
     }
 
@@ -29,18 +30,14 @@ export class RolesGuard implements CanActivate {
     const user = request.user;
 
     if (!user || !user.role) {
-      throw new HttpException(
-        'Akses ditolak. Profil pengguna tidak memiliki hak akses valid.',
-        HttpStatus.FORBIDDEN,
-      );
+      throw new ForbiddenException('No role found in token');
     }
 
-    const hasRole = requiredRoles.includes(user.role.toLowerCase());
+    const hasRole = requiredRoles.includes(user.role);
 
     if (!hasRole) {
-      throw new HttpException(
-        `Akses ditolak. Hak akses akun Anda (${user.role.toUpperCase()}) tidak diizinkan menggunakan endpoint ini.`,
-        HttpStatus.FORBIDDEN,
+      throw new ForbiddenException(
+        `Access denied. Required: [${requiredRoles.join(', ')}], got: ${user.role}`,
       );
     }
 

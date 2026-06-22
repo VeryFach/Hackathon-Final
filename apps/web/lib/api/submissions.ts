@@ -12,6 +12,9 @@ export interface Submission {
   createdAt: string;
   depositor?: {
     id: string;
+    latitude?: string;
+    longitude?: string;
+    address?: string;
     user: {
       id: string;
       fullName: string;
@@ -20,6 +23,11 @@ export interface Submission {
   };
   collector?: {
     id: string;
+    latitude?: string;
+    longitude?: string;
+    warehouseAddress?: string;
+    serviceRadiusKm?: number;
+    capacityLiter?: number;
     user: {
       id: string;
       fullName: string;
@@ -50,6 +58,10 @@ export interface Submission {
 
 export interface CreateSubmissionDto {
   estimatedLiter: number;
+  latitude?: string;
+  longitude?: string;
+  address?: string;
+  notes?: string;
 }
 
 export interface RecordActualLiterDto {
@@ -71,6 +83,11 @@ export const submissionService = {
 
   findPending: async (): Promise<Submission[]> => {
     const response = await api.get("/submissions/pending");
+    return response.data;
+  },
+
+  findForCollector: async (): Promise<Submission[]> => {
+    const response = await api.get("/submissions/collector");
     return response.data;
   },
 

@@ -4,10 +4,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, AlertCircle } from "lucide-react";
 import { AppShell, StatusBadge } from "@/components/app-shell";
-
-// Mock data untuk fetcher sementara
-import { inventory as mockInventory } from "@/lib/mock-data";
-// import { api } from "@/lib/api"; // Uncomment ini jika menggunakan Axios nantinya
+import { pengepulService } from "@/lib/api";
 
 // --- Tipe Data ---
 type InventoryItem = {
@@ -20,13 +17,7 @@ type InventoryItem = {
 
 // --- Fungsi Fetcher API ---
 const fetchInventory = async (): Promise<InventoryItem[]> => {
-  // --- CONTOH JIKA MENGGUNAKAN API ASLI ---
-  // const response = await api.get("/pengepul/inventory");
-  // return response.data;
-
-  // --- MENGGUNAKAN MOCK DATA ---
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulasi proses loading
-  return mockInventory;
+  return pengepulService.getInventory();
 };
 
 export default function InventoryPage() {
@@ -34,6 +25,7 @@ export default function InventoryPage() {
   const { data: inventory = [], isLoading, isError } = useQuery({
     queryKey: ["pengepul-inventory"],
     queryFn: fetchInventory,
+    retry: false,
   });
 
   // 2. Tampilan Loading

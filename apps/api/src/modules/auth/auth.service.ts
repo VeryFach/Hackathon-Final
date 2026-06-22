@@ -1,4 +1,8 @@
-import { ForbiddenException, Injectable } from '@nestjs/common';
+import {
+  ForbiddenException,
+  Injectable,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import * as argon2 from 'argon2';
@@ -28,7 +32,7 @@ export class AuthService {
         },
       });
 
-      return this.signToken(user.id, user.email, user.role);
+      return this.signToken(user);
     } catch (error) {
       if (
         error &&
@@ -46,10 +50,10 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email },
     });
-    if (!user) throw new ForbiddenException('Invalid credentials');
+    if (!user) throw new UnauthorizedException('Invalid credentials');
     const passwordValid = await argon2.verify(user.passwordHash, dto.password);
-    if (!passwordValid) throw new ForbiddenException('Invalid credentials');
-    return this.signToken(user.id, user.email, user.role);
+    if (!passwordValid) throw new UnauthorizedException('Invalid credentials');
+    return this.signToken(user);
   }
 
   async googleLogin(req: any) {
@@ -75,18 +79,53 @@ export class AuthService {
       });
     }
 
-    return this.signToken(user.id, user.email, user.role);
+    return this.signToken(user);
+  }
+
+  async getMe(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, role: true, fullName: true },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    return user;
   }
 
   async signToken(
-    userId: string,
-    email: string,
-    role: UserRole,
-  ): Promise<{ access_token: string }> {
+    userOrId:
+      | {
+          id: string;
+          email: string;
+          role: UserRole;
+          fullName: string;
+        }
+      | string,
+    email?: string,
+    role?: UserRole,
+    fullName = '',
+  ): Promise<{
+    access_token: string;
+    user: { id: string; email: string; role: UserRole; fullName: string };
+  }> {
+    const user =
+      typeof userOrId === 'string'
+        ? {
+            id: userOrId,
+            email: email ?? '',
+            role: role ?? UserRole.masyarakat,
+            fullName,
+          }
+        : userOrId;
+
     const payload = {
-      sub: userId,
-      email,
-      role,
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      fullName: user.fullName,
     };
     const secret = this.config.get<string>('JWT_SECRET');
     const expiresIn = this.config.get<string>('JWT_EXPIRES_IN') || '1d';
@@ -94,6 +133,14 @@ export class AuthService {
       expiresIn: expiresIn as any,
       secret,
     });
-    return { access_token: token };
+    return {
+      access_token: token,
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.fullName,
+      },
+    };
   }
 }

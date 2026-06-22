@@ -119,12 +119,20 @@ describe('AnalyticsService', () => {
             expect(result.financial.pricedBatches).toBe(3);
         });
 
-        it('should throw if collector not found', async () => {
+        it('should return empty collector analytics if collector profile is not found', async () => {
             prismaMock.collectorProfile.findUnique.mockResolvedValue(null);
 
-            await expect(
-                service.getCollectorDashboard('user-2'),
-            ).rejects.toThrow(NotFoundException);
+            await expect(service.getCollectorDashboard('user-2')).resolves.toEqual({
+                totalCollected: 0,
+                avgYieldRatio: 0,
+                activeBatches: 0,
+                sentBatches: 0,
+                financial: {
+                    totalRevenue: 0,
+                    averagePricePerLiter: 0,
+                    pricedBatches: 0,
+                },
+            });
         });
     });
 

@@ -20,6 +20,8 @@ import { T } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/user-context";
 import { LoadingSpinner } from "@/components/loading-spinner";
+import { authService } from "@/lib/api/auth";
+import { queryClient } from "@/lib/react-query";
 
 export default function DashboardLayout({
   children,
@@ -85,17 +87,12 @@ export default function DashboardLayout({
 
   const handleLogout = async () => {
     try {
-      await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/auth/logout`,
-        {
-          method: "POST",
-          credentials: "include",
-        },
-      );
+      await authService.logout();
     } catch (err) {
       console.error("Logout error:", err);
     } finally {
-      router.push("/login");
+      queryClient.clear();
+      router.replace("/login");
     }
   };
 

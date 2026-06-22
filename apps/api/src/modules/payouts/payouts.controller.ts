@@ -18,6 +18,7 @@ import { JwtGuard } from '../auth/guard/jwt.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../auth/decorator/roles.decorator.js';
 import { GetUser } from '../auth/decorator/get-user.decorator.js';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('payouts')
 @ApiBearerAuth()
@@ -27,7 +28,7 @@ export class PayoutsController {
   constructor(private readonly payoutsService: PayoutsService) {}
 
   @Post(':submissionId')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Create payout for a submission' })
   @ApiParam({ name: 'submissionId', description: 'Submission ID', example: 'submission-uuid-here' })
   @ApiResponse({ status: 201, description: 'Payout created with calculated amount' })
@@ -38,7 +39,7 @@ export class PayoutsController {
   }
 
   @Patch(':id/pay')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Mark payout as paid' })
   @ApiParam({ name: 'id', description: 'Payout ID', example: 'payout-uuid-here' })
   @ApiResponse({ status: 200, description: 'Payout marked as paid' })
@@ -49,7 +50,7 @@ export class PayoutsController {
   }
 
   @Get('me')
-  @Roles('masyarakat')
+  @Roles(UserRole.masyarakat)
   @ApiOperation({ summary: 'Get own payout history (depositor)' })
   @ApiResponse({ status: 200, description: 'Payout history for authenticated depositor' })
   @ApiResponse({ status: 404, description: 'Depositor profile not found' })
@@ -58,7 +59,7 @@ export class PayoutsController {
   }
 
   @Get()
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Get all payouts (stakeholder)' })
   @ApiResponse({ status: 200, description: 'All payouts returned' })
   findAll() {

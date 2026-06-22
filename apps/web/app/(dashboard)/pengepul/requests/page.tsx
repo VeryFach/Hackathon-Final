@@ -1,8 +1,32 @@
+"use client";
+
 import { AppShell } from "@/components/app-shell";
-import { incomingRequests } from "@/lib/mock-data";
+import { pengepulService } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Check, X, Clock } from "lucide-react";
 
 export default function RequestsPage() {
+  const queryClient = useQueryClient();
+  const {
+    data: incomingRequests = [],
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["pengepul-requests"],
+    queryFn: pengepulService.getRequests,
+    retry: false,
+  });
+
+  const { mutate: acceptRequest, isPending } = useMutation({
+    mutationFn: pengepulService.acceptRequest,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["pengepul-requests"] });
+      queryClient.invalidateQueries({ queryKey: ["pengepul-dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["pengepul-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["available-inventory"] });
+    },
+  });
+
   return (
     <AppShell 
       title="Permintaan Masuk" 
@@ -10,7 +34,15 @@ export default function RequestsPage() {
     >
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
         
-        {incomingRequests.length === 0 ? (
+        {isLoading ? (
+          <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed border-border rounded-[var(--radius)]">
+            Memuat permintaan masuk...
+          </div>
+        ) : isError ? (
+          <div className="col-span-full py-12 text-center text-red-500 border-2 border-dashed border-red-200 rounded-[var(--radius)]">
+            Gagal memuat permintaan masuk.
+          </div>
+        ) : incomingRequests.length === 0 ? (
           <div className="col-span-full py-12 text-center text-muted-foreground border-2 border-dashed border-border rounded-[var(--radius)]">
             Belum ada permintaan masuk saat ini.
           </div>
@@ -62,6 +94,8 @@ export default function RequestsPage() {
                   Tolak
                 </button>
                 <button 
+                  disabled={isPending}
+                  onClick={() => acceptRequest(r.id)}
                   className="flex-1 py-2.5 rounded-md text-sm font-medium text-primary-foreground inline-flex items-center justify-center gap-2 bg-[image:var(--gradient-warm)] hover:opacity-90 shadow-sm transition-opacity"
                 >
                   <Check className="w-4 h-4" /> 

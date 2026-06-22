@@ -6,44 +6,21 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Layers, Loader2, AlertCircle } from "lucide-react";
 
 import { AppShell, formatRp } from "@/components/app-shell";
-// Mock data untuk fetcher sementara
-import { inventory as mockInventory } from "@/lib/mock-data";
-// import { api } from "@/lib/api"; // Uncomment ini jika sudah siap pakai Axios
+import { pengepulService, type PengepulInventoryItem } from "@/lib/api";
 
 // --- Tipe Data (Sebaiknya ditaruh di file types terpisah nantinya) ---
-type InventoryItem = {
-  id: string;
-  status: string;
-  source: string;
-  liter: number;
-  masuk: string;
-};
+type InventoryItem = PengepulInventoryItem;
 
 // --- FUNGSI FETCHER REACT QUERY ---
 const fetchAvailableInventory = async (): Promise<InventoryItem[]> => {
-  // --- CONTOH JIKA MENGGUNAKAN API ASLI ---
-  // const response = await api.get("/pengepul/inventory/available");
-  // return response.data;
-
-  // --- MENGGUNAKAN MOCK DATA ---
-  await new Promise((resolve) => setTimeout(resolve, 600)); // Simulasi delay
-  return mockInventory.filter(
-    (i: any) => i.status === "ready" || i.status === "stored",
-  );
+  return pengepulService.getInventory();
 };
 
 // --- FUNGSI MUTATION REACT QUERY ---
 const submitBatch = async (data: {
-  selectedIds: string[];
-  totalLiter: number;
+  items: InventoryItem[];
 }) => {
-  // --- CONTOH JIKA MENGGUNAKAN API ASLI ---
-  // const response = await api.post("/pengepul/batches", data);
-  // return response.data;
-
-  // --- MENGGUNAKAN MOCK DATA ---
-  await new Promise((resolve) => setTimeout(resolve, 1000)); // Simulasi proses submit
-  return { success: true, message: "Batch berhasil dibuat" };
+  return pengepulService.createBatchFromInventory(data.items);
 };
 
 export default function NewBatchPage() {
@@ -58,6 +35,7 @@ export default function NewBatchPage() {
   } = useQuery({
     queryKey: ["available-inventory"],
     queryFn: fetchAvailableInventory,
+    retry: false,
   });
 
   // 2. State untuk menyimpan item yang dipilih (Set)
@@ -80,6 +58,8 @@ export default function NewBatchPage() {
       // Invalidate query agar data refresh saat kembali ke halaman sebelumnya
       queryClient.invalidateQueries({ queryKey: ["pengepul-dashboard"] });
       queryClient.invalidateQueries({ queryKey: ["available-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["pengepul-inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["pengepul-batches"] });
       // Redirect ke halaman batches
       router.push("/pengepul/batches");
     },
@@ -105,9 +85,7 @@ export default function NewBatchPage() {
   const handleSubmit = () => {
     if (picked.length === 0) return;
 
-    // Konversi Set ke Array untuk payload API
-    const selectedIds = Array.from(selected);
-    mutate({ selectedIds, totalLiter });
+    mutate({ items: picked });
   };
 
   // --- TAMPILAN LOADING / ERROR UTAMA ---
