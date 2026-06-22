@@ -11,6 +11,70 @@ import { notifyAIService } from '../../lib/ai-webhook.js';
 export class PayoutsService {
   constructor(private prisma: PrismaService) {}
 
+  async addTrainingData(dto: {
+    paidAt: string;
+    volume_liter: number;
+    price_per_liter: number;
+  }) {
+    // Validate inputs
+    if (!dto.paidAt || !dto.volume_liter || !dto.price_per_liter) {
+      throw new BadRequestException(
+        'Missing required fields: paidAt (YYYY-MM-DD), volume_liter, price_per_liter',
+      );
+    }
+
+    if (dto.volume_liter <= 0 || dto.price_per_liter <= 0) {
+      throw new BadRequestException(
+        'volume_liter and price_per_liter must be positive numbers',
+      );
+    }
+
+    // Parse date
+    const paidDate = new Date(dto.paidAt);
+    if (isNaN(paidDate.getTime())) {
+      throw new BadRequestException(
+        'Invalid paidAt date format. Use YYYY-MM-DD',
+      );
+    }
+
+    // Find a random depositor (or use first one)
+    const depositor = await this.prisma.depositorProfile.findFirst({
+      orderBy: { id: 'asc' },
+    });
+
+    if (!depositor) {
+      throw new BadRequestException(
+        'No depositor profiles found. Please create at least one depositor first.',
+      );
+    }
+
+    // Create OilSubmission with the volume
+    const submission = await this.prisma.oilSubmission.create({
+      data: {
+        estimatedLiter: dto.volume_liter,
+        actualLiter: dto.volume_liter,
+        status: SubmissionStatus.completed,
+        depositorId: depositor.id,
+      },
+    });
+
+    // Create Payout with the calculated amount
+    const payoutAmount = dto.volume_liter * dto.price_per_liter;
+    const payout = await this.prisma.payout.create({
+      data: {
+        submissionId: submission.id,
+        amount: payoutAmount,
+        status: PayoutStatus.paid,
+        paidAt: paidDate,
+      },
+    });
+
+    return {
+      payout,
+      message: `Training data added: ${dto.volume_liter}L @ ${dto.price_per_liter}/L = Rp ${payoutAmount.toLocaleString()}`,
+    };
+  }
+
   async create(submissionId: string) {
     // Step 1: Find submission with required relations
     const submission = await this.prisma.oilSubmission.findUnique({
