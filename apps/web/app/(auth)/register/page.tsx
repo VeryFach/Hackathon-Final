@@ -181,6 +181,7 @@ export default function RegisterPage() {
                 {...register("role", { required: "Peran wajib dipilih" })}
               >
                 <option value="masyarakat">Masyarakat</option>
+                 <option value="pengepul">Pengepul</option>
               </select>
             </div>
           </div>
