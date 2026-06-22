@@ -1,4 +1,3 @@
-# apps/ai-service/ai/data_generator.py
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta

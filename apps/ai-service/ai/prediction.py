@@ -1,4 +1,3 @@
-# apps/ai-service/ai/prediction.py
 import pandas as pd
 import numpy as np
 from prophet import Prophet
