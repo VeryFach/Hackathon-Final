@@ -15,7 +15,26 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, TrendingUp, Calendar, Database } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Loader2, TrendingUp, Calendar, Database, Plus, Trash2, Info } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:8000";
 
@@ -32,10 +51,74 @@ interface ChartDataItem {
 }
 
 export default function PrediksiDanaPage() {
+  const [serverData, setServerData] = useState<PredictionItem[]>([]);
+  const [localData, setLocalData] = useState<PredictionItem[]>([]);
   const [chartData, setChartData] = useState<ChartDataItem[]>([]);
   const [nextValue, setNextValue] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // State untuk form tambah data
+  const [newBulan, setNewBulan] = useState("");
+  const [newValue, setNewValue] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+
+  const processData = (data: PredictionItem[]) => {
+    // --- Ambil 6 realisasi terakhir + 1 prediksi pertama ---
+    const realisasi = data
+      .filter((item) => item.type === "realisasi")
+      .sort((a, b) => a.bulan.localeCompare(b.bulan))
+      .slice(-6);
+
+    const prediksi = data
+      .filter((item) => item.type === "prediksi")
+      .sort((a, b) => a.bulan.localeCompare(b.bulan))
+      .slice(0, 1);
+
+    const allItems = [...realisasi, ...prediksi];
+    const monthMap = new Map<string, ChartDataItem>();
+
+    allItems.forEach((item) => {
+      const bulan = item.bulan;
+      if (!monthMap.has(bulan)) {
+        monthMap.set(bulan, { bulan, realisasi: null, prediksi: null });
+      }
+      const entry = monthMap.get(bulan)!;
+      if (item.type === "realisasi") {
+        entry.realisasi = item.total_value;
+      } else {
+        entry.prediksi = item.total_value;
+      }
+    });
+
+    // Tambahkan 1 bulan kosong setelah prediksi
+    const sortedKeys = Array.from(monthMap.keys()).sort();
+    const lastMonth = sortedKeys[sortedKeys.length - 1];
+    if (lastMonth) {
+      const [year, month] = lastMonth.split("-").map(Number);
+      let nextYear = year;
+      let nextMonth = month + 1;
+      if (nextMonth > 12) {
+        nextMonth = 1;
+        nextYear = year + 1;
+      }
+      const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
+      monthMap.set(nextMonthStr, { bulan: nextMonthStr, realisasi: null, prediksi: null });
+    }
+
+    const sortedData = Array.from(monthMap.values()).sort((a, b) =>
+      a.bulan.localeCompare(b.bulan)
+    );
+
+    setChartData(sortedData);
+
+    // Ambil prediksi terakhir
+    const lastPrediksi = data
+      .filter((item) => item.type === "prediksi")
+      .sort((a, b) => a.bulan.localeCompare(b.bulan))
+      .pop();
+    setNextValue(lastPrediksi?.total_value ?? null);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -43,58 +126,9 @@ export default function PrediksiDanaPage() {
     try {
       const response = await axios.get(`${API_URL}/analyze`);
       const predictionData: PredictionItem[] = response.data.prediction || [];
-      const next = response.data.prediction_next_value;
-
-      // --- Sederhanakan: hanya ambil 6 realisasi terakhir + 1 prediksi pertama ---
-      const realisasi = predictionData
-        .filter((item) => item.type === "realisasi")
-        .sort((a, b) => a.bulan.localeCompare(b.bulan))
-        .slice(-6); // ambil 6 bulan terakhir
-
-      const prediksi = predictionData
-        .filter((item) => item.type === "prediksi")
-        .sort((a, b) => a.bulan.localeCompare(b.bulan))
-        .slice(0, 1); // ambil 1 prediksi pertama (bulan depan)
-
-      // Gabungkan realisasi dan prediksi
-      const allItems = [...realisasi, ...prediksi];
-      const monthMap = new Map<string, ChartDataItem>();
-
-      allItems.forEach((item) => {
-        const bulan = item.bulan;
-        if (!monthMap.has(bulan)) {
-          monthMap.set(bulan, { bulan, realisasi: null, prediksi: null });
-        }
-        const entry = monthMap.get(bulan)!;
-        if (item.type === "realisasi") {
-          entry.realisasi = item.total_value;
-        } else {
-          entry.prediksi = item.total_value;
-        }
-      });
-
-      // 🔥 Tambahkan 1 bulan kosong setelah prediksi terakhir
-      const sortedKeys = Array.from(monthMap.keys()).sort();
-      const lastMonth = sortedKeys[sortedKeys.length - 1];
-      if (lastMonth) {
-        const [year, month] = lastMonth.split("-").map(Number);
-        let nextYear = year;
-        let nextMonth = month + 1;
-        if (nextMonth > 12) {
-          nextMonth = 1;
-          nextYear = year + 1;
-        }
-        const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
-        monthMap.set(nextMonthStr, { bulan: nextMonthStr, realisasi: null, prediksi: null });
-      }
-
-      // Urutkan berdasarkan bulan
-      const sortedData = Array.from(monthMap.values()).sort((a, b) =>
-        a.bulan.localeCompare(b.bulan)
-      );
-
-      setChartData(sortedData);
-      setNextValue(next);
+      setServerData(predictionData);
+      const allData = [...predictionData, ...localData];
+      processData(allData);
     } catch (err: any) {
       console.error("❌ Error fetching prediction data:", err);
       setError(err.message || "Gagal mengambil data prediksi");
@@ -103,15 +137,116 @@ export default function PrediksiDanaPage() {
     }
   };
 
+  // 🔥 Set default bulan ke bulan setelah data terakhir
+  useEffect(() => {
+    if (chartData.length === 0) {
+      // Default ke bulan sekarang
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      setNewBulan(`${year}-${month}`);
+      return;
+    }
+
+    // Ambil bulan terakhir yang memiliki data (realisasi atau prediksi)
+    const nonEmptyMonths = chartData
+      .filter(d => d.realisasi !== null || d.prediksi !== null)
+      .map(d => d.bulan);
+    
+    if (nonEmptyMonths.length === 0) {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = String(now.getMonth() + 1).padStart(2, "0");
+      setNewBulan(`${year}-${month}`);
+      return;
+    }
+
+    const lastMonth = nonEmptyMonths[nonEmptyMonths.length - 1];
+    const [year, month] = lastMonth.split("-").map(Number);
+    let nextYear = year;
+    let nextMonth = month + 1;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear = year + 1;
+    }
+    const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
+    setNewBulan(nextMonthStr);
+  }, [chartData]);
+
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Hitung statistik
+  useEffect(() => {
+    if (serverData.length > 0) {
+      const allData = [...serverData, ...localData];
+      processData(allData);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localData]);
+
+  const handleAddData = () => {
+    if (!newBulan || !newValue) {
+      alert("Silakan isi bulan dan nilai!");
+      return;
+    }
+    const value = parseFloat(newValue);
+    if (isNaN(value) || value < 0) {
+      alert("Nilai harus berupa angka positif!");
+      return;
+    }
+
+    // Cek apakah bulan sudah ada di localData atau serverData sebagai realisasi
+    const allExisting = [...serverData, ...localData];
+    if (allExisting.some((item) => item.bulan === newBulan && item.type === "realisasi")) {
+      alert(`Data realisasi untuk bulan ${newBulan} sudah ada!`);
+      return;
+    }
+
+    const newItem: PredictionItem = {
+      bulan: newBulan,
+      total_value: value,
+      type: "realisasi",
+    };
+
+    setLocalData((prev) => [...prev, newItem]);
+    setNewBulan("");
+    setNewValue("");
+    setDialogOpen(false);
+  };
+
+  const handleDeleteData = (bulan: string) => {
+    setLocalData((prev) => prev.filter((item) => item.bulan !== bulan));
+  };
+
+  // Data untuk tabel (gabungan, diurutkan terbaru di atas)
+  const tableData = [...serverData, ...localData]
+    .sort((a, b) => b.bulan.localeCompare(a.bulan));
+
   const realisasiCount = chartData.filter((d) => d.realisasi !== null).length;
   const prediksiCount = chartData.filter((d) => d.prediksi !== null).length;
   const lastMonth =
     chartData.length > 0 ? chartData[chartData.length - 1].bulan : "-";
+
+  // Cek apakah newBulan adalah bulan setelah data terakhir (untuk info tooltip)
+  const isNextMonth = (() => {
+    if (chartData.length === 0) return false;
+    const nonEmptyMonths = chartData
+      .filter(d => d.realisasi !== null || d.prediksi !== null)
+      .map(d => d.bulan);
+    if (nonEmptyMonths.length === 0) return false;
+    const lastMonth = nonEmptyMonths[nonEmptyMonths.length - 1];
+    const [year, month] = lastMonth.split("-").map(Number);
+    let nextYear = year;
+    let nextMonth = month + 1;
+    if (nextMonth > 12) {
+      nextMonth = 1;
+      nextYear = year + 1;
+    }
+    const nextMonthStr = `${nextYear}-${String(nextMonth).padStart(2, "0")}`;
+    return newBulan === nextMonthStr;
+  })();
 
   return (
     <div className="space-y-6 p-6">
@@ -231,7 +366,6 @@ export default function PrediksiDanaPage() {
                 />
                 <Legend />
 
-                {/* Garis Realisasi */}
                 <Line
                   type="monotone"
                   dataKey="realisasi"
@@ -243,14 +377,13 @@ export default function PrediksiDanaPage() {
                   connectNulls={false}
                 />
 
-                {/* Garis Prediksi */}
                 <Line
                   type="monotone"
                   dataKey="prediksi"
                   stroke="#d97706"
                   name="Prediksi"
                   strokeWidth={3}
-                  // strokeDasharray="8 4"
+                  strokeDasharray="8 4"
                   dot={{ r: 6, fill: "#d97706" }}
                   activeDot={{ r: 10 }}
                   connectNulls={false}
@@ -261,6 +394,140 @@ export default function PrediksiDanaPage() {
             <div className="flex items-center justify-center h-80 text-muted-foreground">
               <p>Tidak ada data untuk ditampilkan.</p>
             </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Tabel Data */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Data Realisasi & Prediksi</CardTitle>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-1">
+                <Plus className="h-4 w-4" />
+                Tambah Data
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Tambah Data Realisasi</DialogTitle>
+                <DialogDescription>
+                  Masukkan bulan dan nilai realisasi baru. 
+                  Bulan akan diisi otomatis dengan bulan setelah data terakhir.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="bulan" className="text-right">
+                    Bulan
+                  </Label>
+                  <div className="col-span-3 relative">
+                    <Input
+                      id="bulan"
+                      placeholder="YYYY-MM"
+                      value={newBulan}
+                      onChange={(e) => setNewBulan(e.target.value)}
+                      className={isNextMonth ? "border-primary/50 bg-primary/5" : ""}
+                    />
+                    {isNextMonth && (
+                      <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-primary">
+                        <Info className="h-4 w-4 inline mr-1" />
+                        bulan setelah data terakhir
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="nilai" className="text-right">
+                    Nilai (juta)
+                  </Label>
+                  <Input
+                    id="nilai"
+                    type="number"
+                    placeholder="100"
+                    value={newValue}
+                    onChange={(e) => setNewValue(e.target.value)}
+                    className="col-span-3"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Batal
+                </Button>
+                <Button onClick={handleAddData}>Tambah</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="flex items-center justify-center h-32">
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <span className="ml-2 text-muted-foreground">Memuat data...</span>
+            </div>
+          ) : tableData.length > 0 ? (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="font-mono text-xs">Bulan</TableHead>
+                    <TableHead className="font-mono text-xs text-right">Realisasi (juta)</TableHead>
+                    <TableHead className="font-mono text-xs text-right">Prediksi (juta)</TableHead>
+                    <TableHead className="font-mono text-xs text-center">Keterangan</TableHead>
+                    <TableHead className="font-mono text-xs text-center">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {tableData.map((item, index) => {
+                    const isLocal = localData.some((d) => d.bulan === item.bulan && d.type === item.type);
+                    const isRealisasi = item.type === "realisasi";
+                    const isPrediksi = item.type === "prediksi";
+                    let status = "";
+                    if (isRealisasi && isPrediksi) status = "Realisasi & Prediksi";
+                    else if (isRealisasi) status = "Realisasi";
+                    else if (isPrediksi) status = "Prediksi";
+                    else status = "-";
+
+                    let statusColor = "text-muted-foreground";
+                    if (status === "Realisasi") statusColor = "text-blue-600";
+                    else if (status === "Prediksi") statusColor = "text-amber-600";
+                    else if (status === "Realisasi & Prediksi") statusColor = "text-green-600";
+
+                    return (
+                      <TableRow key={index} className={isLocal ? "bg-primary/5" : ""}>
+                        <TableCell className="font-mono text-sm">{item.bulan}</TableCell>
+                        <TableCell className="text-right font-mono">
+                          {item.type === "realisasi" ? item.total_value.toLocaleString() : "-"}
+                        </TableCell>
+                        <TableCell className="text-right font-mono">
+                          {item.type === "prediksi" ? item.total_value.toLocaleString() : "-"}
+                        </TableCell>
+                        <TableCell className={`text-center text-xs font-medium ${statusColor}`}>
+                          {status}
+                          {isLocal && " (lokal)"}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {isLocal && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-6 w-6 text-red-500 hover:text-red-700"
+                              onClick={() => handleDeleteData(item.bulan)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Tidak ada data.</p>
           )}
         </CardContent>
       </Card>
