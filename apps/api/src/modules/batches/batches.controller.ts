@@ -26,6 +26,7 @@ import {
   AddBatchItemsSchema,
   ProcessBatchSchema,
 } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 import type {
   ICreateBatchDto,
   IAddBatchItemsDto,
@@ -45,10 +46,8 @@ export class BatchesController {
   @ApiBody({
     schema: {
       type: 'object',
-      required: ['name'],
-      properties: {
-        name: { type: 'string', example: 'Batch June 001', description: 'Batch label/name (metadata only)' },
-      },
+      additionalProperties: false,
+      properties: {},
     },
   })
   @ApiResponse({ status: 201, description: 'Batch created successfully' })
@@ -59,6 +58,22 @@ export class BatchesController {
     @Body(new ZodValidationPipe(CreateBatchSchema)) dto: ICreateBatchDto,
   ) {
     return this.batchesService.create(userId, dto);
+  }
+
+  @Get('me')
+  @Roles('pengepul')
+  @ApiOperation({ summary: 'Get batches owned by current collector' })
+  @ApiResponse({ status: 200, description: 'Collector batches returned' })
+  findMine(@GetUser('id') userId: string) {
+    return this.batchesService.findMine(userId);
+  }
+
+  @Get()
+  @Roles('stakeholder')
+  @ApiOperation({ summary: 'Get all batches for stakeholder review' })
+  @ApiResponse({ status: 200, description: 'All batches returned' })
+  findAllForStakeholder() {
+    return this.batchesService.findAllForStakeholder();
   }
 
   @Post(':id/items')
@@ -133,11 +148,16 @@ export class BatchesController {
   }
 
   @Get(':id')
+  @Roles('pengepul', 'stakeholder')
   @ApiOperation({ summary: 'Get full batch detail' })
   @ApiParam({ name: 'id', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 200, description: 'Batch detail returned' })
   @ApiResponse({ status: 404, description: 'Batch not found' })
-  findOne(@Param('id') id: string) {
-    return this.batchesService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') role: UserRole,
+  ) {
+    return this.batchesService.findOne(id, userId, role);
   }
 }

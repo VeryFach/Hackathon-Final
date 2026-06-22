@@ -21,8 +21,16 @@ import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../auth/decorator/roles.decorator.js';
 import { GetUser } from '../auth/decorator/get-user.decorator.js';
 import { ZodValidationPipe } from '../../lib/pipes/zod.pipe.js';
-import { CreateSubmissionSchema, MarkInBatchSchema } from '@repo/dto';
-import type { ICreateSubmissionDto, IMarkInBatchDto } from '@repo/dto';
+import {
+  CreateSubmissionSchema,
+  MarkInBatchSchema,
+  RecordActualLiterSchema,
+} from '@repo/dto';
+import type {
+  ICreateSubmissionDto,
+  IMarkInBatchDto,
+  IRecordActualLiterDto,
+} from '@repo/dto';
 
 @ApiTags('submissions')
 @ApiBearerAuth()
@@ -54,6 +62,7 @@ export class SubmissionsController {
   }
 
   @Get('me')
+  @Roles('masyarakat')
   @ApiOperation({ summary: 'Get all submissions for the current user' })
   @ApiResponse({ status: 200, description: 'Returns user submissions' })
   @ApiResponse({ status: 401, description: 'Unauthorized' })
@@ -61,7 +70,16 @@ export class SubmissionsController {
     return this.submissionsService.findMine(userId);
   }
 
+  @Get('pending')
+  @Roles('pengepul')
+  @ApiOperation({ summary: 'Get pending submissions available for collectors' })
+  @ApiResponse({ status: 200, description: 'Returns pending submissions' })
+  findPending() {
+    return this.submissionsService.findPending();
+  }
+
   @Get(':id')
+  @Roles('masyarakat')
   @ApiOperation({ summary: 'Get submission by ID' })
   @ApiParam({ name: 'id', description: 'Submission ID', example: 'sub-uuid-here' })
   @ApiResponse({ status: 200, description: 'Returns submission details' })
@@ -99,6 +117,31 @@ export class SubmissionsController {
     @GetUser('id') userId: string,
   ) {
     return this.submissionsService.pickup(id, userId);
+  }
+
+  @Patch(':id/actual-liter')
+  @Roles('pengepul')
+  @ApiOperation({ summary: 'Record measured actual liter after pickup' })
+  @ApiParam({ name: 'id', description: 'Submission ID', example: 'sub-uuid-here' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['actualLiter'],
+      properties: {
+        actualLiter: { type: 'number', example: 14.8, description: 'Measured volume in liters' },
+      },
+    },
+  })
+  @ApiResponse({ status: 200, description: 'Actual liter recorded' })
+  @ApiResponse({ status: 400, description: 'Invalid submission status or amount' })
+  @ApiResponse({ status: 403, description: 'Not the assigned collector' })
+  @ApiResponse({ status: 404, description: 'Submission not found' })
+  recordActualLiter(
+    @Param('id') id: string,
+    @GetUser('id') userId: string,
+    @Body(new ZodValidationPipe(RecordActualLiterSchema)) dto: IRecordActualLiterDto,
+  ) {
+    return this.submissionsService.recordActualLiter(id, userId, dto);
   }
 
   @Patch(':id/in-batch')

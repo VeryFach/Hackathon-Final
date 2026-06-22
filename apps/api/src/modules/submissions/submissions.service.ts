@@ -5,8 +5,12 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { SubmissionStatus } from '@prisma/client';
-import { ICreateSubmissionDto, IMarkInBatchDto } from '@repo/dto';
+import { BatchStatus, SubmissionStatus } from '@prisma/client';
+import {
+  ICreateSubmissionDto,
+  IMarkInBatchDto,
+  IRecordActualLiterDto,
+} from '@repo/dto';
 
 @Injectable()
 export class SubmissionsService {
@@ -64,6 +68,18 @@ export class SubmissionsService {
         payout: true,
       },
       orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async findPending() {
+    return this.prisma.oilSubmission.findMany({
+      where: { status: SubmissionStatus.pending },
+      include: {
+        depositor: {
+          include: { user: { select: { id: true, fullName: true, email: true } } },
+        },
+      },
+      orderBy: { createdAt: 'asc' },
     });
   }
 
@@ -181,6 +197,45 @@ export class SubmissionsService {
     });
   }
 
+  async recordActualLiter(
+    submissionId: string,
+    userId: string,
+    dto: IRecordActualLiterDto,
+  ) {
+    const collectorProfile = await this.prisma.collectorProfile.findUnique({
+      where: { userId },
+    });
+
+    if (!collectorProfile) {
+      throw new NotFoundException('Collector profile not found.');
+    }
+
+    const submission = await this.prisma.oilSubmission.findUnique({
+      where: { id: submissionId },
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found.');
+    }
+
+    if (submission.collectorId !== collectorProfile.id) {
+      throw new ForbiddenException(
+        'Only the assigned collector can record actual liter for this submission.',
+      );
+    }
+
+    if (submission.status !== SubmissionStatus.picked_up) {
+      throw new BadRequestException(
+        `Cannot record actual liter for submission with status "${submission.status}". Only picked_up submissions can be measured.`,
+      );
+    }
+
+    return this.prisma.oilSubmission.update({
+      where: { id: submissionId },
+      data: { actualLiter: dto.actualLiter },
+    });
+  }
+
   async markInBatch(submissionId: string, userId: string, dto: IMarkInBatchDto) {
     const collectorProfile = await this.prisma.collectorProfile.findUnique({
       where: { userId },
@@ -218,8 +273,28 @@ export class SubmissionsService {
       throw new NotFoundException(`Batch "${dto.batchId}" not found.`);
     }
 
+    if (batch.collectorId !== collectorProfile.id) {
+      throw new ForbiddenException('This batch does not belong to you.');
+    }
+
+    if (batch.status !== BatchStatus.draft) {
+      throw new BadRequestException(
+        `Cannot add submissions to batch with status "${batch.status}". Only draft batches can accept items.`,
+      );
+    }
+
+    const existingBatchItem = await this.prisma.batchItem.findUnique({
+      where: { submissionId },
+    });
+
+    if (existingBatchItem) {
+      throw new BadRequestException(
+        'Submission is already assigned to a batch.',
+      );
+    }
+
     // Create BatchItem to link submission to batch, then update status
-    const [batchItem, updatedSubmission] = await this.prisma.$transaction([
+    const [, updatedSubmission] = await this.prisma.$transaction([
       this.prisma.batchItem.create({
         data: {
           batchId: dto.batchId,

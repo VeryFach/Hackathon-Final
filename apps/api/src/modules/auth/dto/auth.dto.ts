@@ -4,8 +4,8 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
-  MinLength,
   IsIn,
+  MinLength,
 } from 'class-validator';
 import { IRegisterDto, ILoginDto } from '@repo/dto';
 import { UserRole } from '@prisma/client';
@@ -29,15 +29,15 @@ export class RegisterDto implements IRegisterDto {
   fullName?: string;
 
   @ApiProperty({
-    enum: UserRole,
+    enum: [UserRole.masyarakat, UserRole.pengepul],
     required: false,
     default: UserRole.masyarakat,
-    description: 'Default: masyarakat'
+    description: 'Public registration supports masyarakat or pengepul only',
   })
   @IsOptional()
   @IsString()
-  @IsIn(Object.values(UserRole))
-  role?: UserRole;
+  @IsIn([UserRole.masyarakat, UserRole.pengepul])
+  role?: 'masyarakat' | 'pengepul';
 }
 
 export class LoginDto implements ILoginDto {

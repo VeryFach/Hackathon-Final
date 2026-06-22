@@ -140,6 +140,20 @@ describe('AuthService', () => {
       );
     });
 
+    it('should create a pengepul account when role is requested', async () => {
+      mockPrisma.user.create.mockResolvedValue(
+        makePrismaUser({ role: 'pengepul' }),
+      );
+
+      await service.register(makeRegisterDto({ role: 'pengepul' }));
+
+      expect(mockPrisma.user.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ role: 'pengepul' }),
+        }),
+      );
+    });
+
     it('should throw ForbiddenException when email is already taken (P2002)', async () => {
       // Simulate Prisma's unique-constraint violation error.
       const prismaError = { code: 'P2002', meta: { target: ['email'] } };

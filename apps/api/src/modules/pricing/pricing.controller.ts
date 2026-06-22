@@ -45,10 +45,8 @@ export class PricingController {
   @ApiBody({
     schema: {
       type: 'object',
-      properties: {
-        name: { type: 'string', example: 'Pricing June 2026', description: 'Optional pricing config label' },
-        basePrice: { type: 'number', example: 8000, description: 'Optional base price reference' },
-      },
+      additionalProperties: false,
+      properties: {},
     },
   })
   @ApiResponse({ status: 201, description: 'Pricing configuration created (inactive by default)' })

@@ -1,9 +1,6 @@
 import { z } from 'zod';
 
-export const CreatePricingSchema = z.object({
-  name: z.string().min(1).optional(),
-  basePrice: z.number().min(1).optional(),
-});
+export const CreatePricingSchema = z.object({}).strict();
 
 export type ICreatePricingDto = z.infer<typeof CreatePricingSchema>;
 

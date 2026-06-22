@@ -50,10 +50,10 @@ export interface Submission {
 
 export interface CreateSubmissionDto {
   estimatedLiter: number;
-  latitude: string;
-  longitude: string;
-  address?: string;
-  notes?: string;
+}
+
+export interface RecordActualLiterDto {
+  actualLiter: number;
 }
 
 // ==================== API FUNCTIONS ====================
@@ -69,13 +69,26 @@ export const submissionService = {
     return response.data;
   },
 
+  findPending: async (): Promise<Submission[]> => {
+    const response = await api.get("/submissions/pending");
+    return response.data;
+  },
+
   accept: async (id: string): Promise<Submission> => {
-    const response = await api.post(`/submissions/${id}/accept`);
+    const response = await api.patch(`/submissions/${id}/accept`);
     return response.data;
   },
 
   pickup: async (id: string): Promise<Submission> => {
-    const response = await api.post(`/submissions/${id}/pickup`);
+    const response = await api.patch(`/submissions/${id}/pickup`);
+    return response.data;
+  },
+
+  recordActualLiter: async (
+    id: string,
+    data: RecordActualLiterDto,
+  ): Promise<Submission> => {
+    const response = await api.patch(`/submissions/${id}/actual-liter`, data);
     return response.data;
   },
 

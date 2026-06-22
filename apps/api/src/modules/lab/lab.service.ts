@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { BatchStatus, OilGrade } from '@prisma/client';
+import { BatchStatus, OilGrade, UserRole } from '@prisma/client';
 import type { ICreateLabResultDto, IRejectLabDto } from '@repo/dto';
 
 @Injectable()
@@ -97,13 +97,27 @@ export class LabService {
     });
   }
 
-  async findByBatch(batchId: string) {
+  async findByBatch(batchId: string, userId?: string, role?: UserRole) {
     const batch = await this.prisma.batch.findUnique({
       where: { id: batchId },
     });
 
     if (!batch) {
       throw new NotFoundException('Batch not found.');
+    }
+
+    if (role === UserRole.pengepul) {
+      if (!userId) {
+        throw new NotFoundException('No lab result found for this batch.');
+      }
+
+      const collectorProfile = await this.prisma.collectorProfile.findUnique({
+        where: { userId },
+      });
+
+      if (!collectorProfile || batch.collectorId !== collectorProfile.id) {
+        throw new NotFoundException('No lab result found for this batch.');
+      }
     }
 
     const labResult = await this.prisma.labResult.findUnique({
@@ -131,7 +145,7 @@ export class LabService {
     return labResult;
   }
 
-  async approve(batchId: string) {
+  async approve(batchId: string, validatorUserId?: string) {
     const batch = await this.prisma.batch.findUnique({
       where: { id: batchId },
       include: { labResult: true },
@@ -147,21 +161,32 @@ export class LabService {
       );
     }
 
-    if (batch.status === BatchStatus.approved) {
-      throw new BadRequestException('Batch has already been approved.');
-    }
-
-    if (batch.status === BatchStatus.rejected) {
-      throw new BadRequestException('Batch has already been rejected.');
+    if (batch.status !== BatchStatus.sent) {
+      throw new BadRequestException(
+        `Cannot approve batch with status "${batch.status}". Only sent batches can be approved.`,
+      );
     }
 
     return this.prisma.batch.update({
       where: { id: batchId },
-      data: { status: BatchStatus.approved },
+      data: {
+        status: BatchStatus.approved,
+        ...(validatorUserId && { validatedBy: validatorUserId }),
+      },
     });
   }
 
-  async reject(batchId: string, dto: IRejectLabDto) {
+  async reject(
+    batchId: string,
+    validatorUserIdOrDto?: string | IRejectLabDto,
+    maybeDto?: IRejectLabDto,
+  ) {
+    const validatorUserId =
+      typeof validatorUserIdOrDto === 'string' ? validatorUserIdOrDto : undefined;
+    const dto =
+      typeof validatorUserIdOrDto === 'string' ? maybeDto : validatorUserIdOrDto;
+    void dto;
+
     const batch = await this.prisma.batch.findUnique({
       where: { id: batchId },
       include: { labResult: true },
@@ -177,17 +202,18 @@ export class LabService {
       );
     }
 
-    if (batch.status === BatchStatus.approved) {
-      throw new BadRequestException('Batch has already been approved.');
-    }
-
-    if (batch.status === BatchStatus.rejected) {
-      throw new BadRequestException('Batch has already been rejected.');
+    if (batch.status !== BatchStatus.sent) {
+      throw new BadRequestException(
+        `Cannot reject batch with status "${batch.status}". Only sent batches can be rejected.`,
+      );
     }
 
     return this.prisma.batch.update({
       where: { id: batchId },
-      data: { status: BatchStatus.rejected },
+      data: {
+        status: BatchStatus.rejected,
+        ...(validatorUserId && { validatedBy: validatorUserId }),
+      },
     });
   }
 }
