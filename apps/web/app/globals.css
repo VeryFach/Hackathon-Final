@@ -1,0 +1,102 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=JetBrains+Mono:wght@400;500;600;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Ganti nilai di bawah untuk sesuaikan tema hackathon ── */
+    --accent-hue: #2563eb;
+    --accent-hue-fg: #ffffff;
+
+    --background: #f8f9fa;
+    --foreground: #111318;
+    --card: #ffffff;
+    --card-foreground: #111318;
+    --popover: #ffffff;
+    --popover-foreground: #111318;
+    --primary: var(--accent-hue);
+    --primary-foreground: var(--accent-hue-fg);
+    --secondary: #f1f3f5;
+    --secondary-foreground: #111318;
+    --muted: #e9ecef;
+    --muted-foreground: #6b7280;
+    --accent: var(--accent-hue);
+    --accent-foreground: var(--accent-hue-fg);
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --border: #e2e4e8;
+    --input: #f1f3f5;
+    --ring: var(--accent-hue);
+    --chart-1: var(--accent-hue);
+    --chart-2: #7c3aed;
+    --chart-3: #d97706;
+    --chart-4: #059669;
+    --chart-5: #dc2626;
+    --radius: 0.25rem;
+    --sidebar: #ffffff;
+    --sidebar-foreground: #111318;
+    --sidebar-primary: var(--accent-hue);
+    --sidebar-primary-foreground: var(--accent-hue-fg);
+    --sidebar-accent: #f1f3f5;
+    --sidebar-accent-foreground: #111318;
+    --sidebar-border: #e2e4e8;
+    --sidebar-ring: var(--accent-hue);
+  }
+
+  .dark {
+    --background: #0f1117;
+    --foreground: #f8f9fa;
+    --card: #1a1d27;
+    --card-foreground: #f8f9fa;
+    --popover: #1a1d27;
+    --popover-foreground: #f8f9fa;
+    --primary: #60a5fa;
+    --primary-foreground: #0f1117;
+    --secondary: #262a36;
+    --secondary-foreground: #f8f9fa;
+    --muted: #262a36;
+    --muted-foreground: #9ca3af;
+    --accent: #262a36;
+    --accent-foreground: #f8f9fa;
+    --destructive: #991b1b;
+    --destructive-foreground: #f8f9fa;
+    --border: #262a36;
+    --input: #262a36;
+    --ring: #6b7280;
+    --chart-1: #60a5fa;
+    --chart-2: #34d399;
+    --chart-3: #fbbf24;
+    --chart-4: #a78bfa;
+    --chart-5: #f87171;
+    --sidebar: #141720;
+    --sidebar-foreground: #f8f9fa;
+    --sidebar-primary: #60a5fa;
+    --sidebar-primary-foreground: #0f1117;
+    --sidebar-accent: #262a36;
+    --sidebar-accent-foreground: #f8f9fa;
+    --sidebar-border: #262a36;
+    --sidebar-ring: #6b7280;
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-family: 'Inter', sans-serif;
+  }
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace !important;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--primary); }
