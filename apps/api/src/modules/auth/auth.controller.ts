@@ -22,10 +22,14 @@ import { Public } from './decorator/public.decorator.js';
 
 /** Opsi default untuk cookie autentikasi */
 const COOKIE_NAME = 'cookie_token';
-const COOKIE_SAME_SITE = process.env.NODE_ENV === 'production' ? 'none' : 'lax';
+const COOKIE_SECURE =
+  process.env.AUTH_COOKIE_SECURE === 'true' ||
+  (process.env.AUTH_COOKIE_SECURE == null &&
+    process.env.FRONTEND_URL?.startsWith('https://'));
+const COOKIE_SAME_SITE = COOKIE_SECURE ? 'none' : 'lax';
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: COOKIE_SECURE,
   sameSite: COOKIE_SAME_SITE as 'none' | 'lax',
   path: '/',
   maxAge: 24 * 60 * 60 * 1000, // 1 hari (ms)
@@ -86,7 +90,7 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: Response) {
     res.clearCookie(COOKIE_NAME, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: COOKIE_SECURE,
       sameSite: COOKIE_SAME_SITE as 'none' | 'lax',
       path: '/',
     });
