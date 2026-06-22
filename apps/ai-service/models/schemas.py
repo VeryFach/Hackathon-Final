@@ -1,6 +1,14 @@
 from pydantic import BaseModel
 from typing import List, Optional
 
+class Coordinate(BaseModel):
+    latitude: float
+    longitude: float
+
+class ClusterRequest(BaseModel):
+    coordinates: List[Coordinate]
+    n_clusters: Optional[int] = None
+
 class LocationRecommendation(BaseModel):
     latitude: float
     longitude: float
@@ -18,7 +26,7 @@ class ClusterPoint(BaseModel):
 class PredictionData(BaseModel):
     bulan: str
     total_value: float
-    type: str  # 'realisasi' atau 'prediksi'
+    type: str
 
 class AIResponse(BaseModel):
     recommendations: List[LocationRecommendation]

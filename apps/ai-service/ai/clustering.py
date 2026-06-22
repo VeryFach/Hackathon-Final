@@ -1,57 +1,78 @@
+# ai/clustering.py
 import numpy as np
 import pandas as pd
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
+import logging
+from collections import Counter
 
-def recommend_collector_locations(depositors_df, n_clusters=3):
-    """
-    Berdasarkan lokasi penyetor (lat, long) SAJA, lakukan clustering
-    untuk merekomendasikan lokasi pengepul baru.
-    Output: DataFrame dengan koordinat pusat cluster dan skor.
-    """
-    # Ambil fitur: latitude, longitude (tanpa volume)
-    X = depositors_df[['latitude', 'longitude']].copy()
-    
-    # Standardisasi fitur lokasi (opsional, tapi membantu clustering)
-    scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
-    
-    # KMeans clustering
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-    kmeans.fit(X_scaled)
-    labels = kmeans.labels_
-    centers = kmeans.cluster_centers_
-    
-    # Kembalikan ke skala asli
-    centers_original = scaler.inverse_transform(centers)
-    
-    # Buat DataFrame hasil
-    result = pd.DataFrame(centers_original, columns=['latitude', 'longitude'])
-    result['cluster'] = range(n_clusters)
-    result['nama'] = [f'Lokasi Rekomendasi {chr(65+i)}' for i in range(n_clusters)]
-    
-    # Hitung skor: jumlah depositor dalam radius 0.02 derajat
-    scores = []
-    for i, row in result.iterrows():
-        dist = np.sqrt((depositors_df['latitude'] - row['latitude'])**2 + 
-                       (depositors_df['longitude'] - row['longitude'])**2)
-        count = np.sum(dist < 0.02)
-        scores.append(count)
-    result['score'] = scores
-    
-    return result
+logger = logging.getLogger(__name__)
 
-def get_cluster_data(depositors_df, n_clusters=3):
-    """
-    Untuk visualisasi, kembalikan data clustering: setiap titik dengan label cluster.
-    """
-    X = depositors_df[['latitude', 'longitude']].copy()
+def perform_clustering(coords, n_clusters):
+    if not coords:
+        raise ValueError("No coordinates provided")
     
+    n_clusters = max(1, n_clusters)  # ensure at least 1
+    if n_clusters > len(coords):
+        n_clusters = len(coords)
+    
+    X = np.array([[c['latitude'], c['longitude']] for c in coords])
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     
     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
     labels = kmeans.fit_predict(X_scaled)
+    centroids = scaler.inverse_transform(kmeans.cluster_centers_)
     
-    depositors_df['cluster'] = labels
-    return depositors_df[['depositor_id', 'latitude', 'longitude', 'cluster']]
+    counts = {int(k): int(v) for k, v in Counter(labels).items()}
+    return {
+        'labels': labels.tolist(),
+        'centroids': centroids.tolist(),
+        'cluster_counts': counts,
+    }
+
+def find_optimal_clusters(coords, max_k=10):
+    n_points = len(coords)
+    if n_points == 0:
+        return 1
+    max_k = min(max_k, n_points)
+    X = np.array([[c['latitude'], c['longitude']] for c in coords])
+    inertias = []
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        kmeans.fit(X)
+        inertias.append(kmeans.inertia_)
+    
+    if len(inertias) > 2:
+        diffs = [inertias[i-1] - inertias[i] for i in range(1, len(inertias))]
+        if diffs:
+            threshold = diffs[0] * 0.05
+            for i, d in enumerate(diffs, start=1):
+                if d < threshold:
+                    return max(1, i)
+    return min(3, max(1, n_points))
+
+def get_cluster_points(depositors_df, labels):
+    points = []
+    for idx, row in depositors_df.iterrows():
+        points.append({
+            'depositor_id': row['id'],
+            'latitude': float(row['latitude']),
+            'longitude': float(row['longitude']),
+            'volume': 0,
+            'cluster': int(labels[idx]),
+        })
+    return points
+
+def get_recommendations(centroids, cluster_counts):
+    recommendations = []
+    for i, (centroid, count) in enumerate(zip(centroids, cluster_counts.values())):
+        lat, lon = centroid
+        recommendations.append({
+            'latitude': float(lat),
+            'longitude': float(lon),
+            'cluster': i,
+            'score': float(count),
+            'nama': f'Lokasi Rekomendasi {chr(65+i)}',
+        })
+    return recommendations

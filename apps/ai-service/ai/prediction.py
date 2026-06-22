@@ -1,57 +1,55 @@
+# apps/ai-service/ai/prediction.py
 import pandas as pd
 import numpy as np
-from sklearn.linear_model import LinearRegression
-from sklearn.preprocessing import PolynomialFeatures
+from prophet import Prophet
+import logging
 
-def predict_funds(batches_df, months_ahead=1):
+logger = logging.getLogger(__name__)
+
+def forecast_fund(history_df: pd.DataFrame, periods: int = 1) -> dict:
     """
-    Prediksi total nilai pembelian (dana) untuk bulan depan.
-    Menggunakan regresi linier atau polinomial terhadap waktu.
-    Output: prediksi total dana untuk bulan depan (dalam juta Rupiah).
+    Forecast future fund requirements using Prophet.
+    
+    Returns:
+        dict with keys: 'forecast' (list) and 'next_value' (float)
     """
-    # Group by month
-    batches_df['year_month'] = batches_df['date'].dt.to_period('M')
-    monthly = batches_df.groupby('year_month').agg({
-        'total_value': 'sum',
-        'volume': 'sum'
-    }).reset_index()
-    monthly['period'] = range(1, len(monthly) + 1)
+    if history_df.empty or len(history_df) < 2:
+        return {'forecast': [], 'next_value': None}
     
-    # Fitur: period (bulan ke-)
-    X = monthly[['period']].values
-    y = monthly['total_value'].values / 1_000_000  # konversi ke juta
+    df = history_df[['ds', 'y']].copy()
+    df['ds'] = pd.to_datetime(df['ds'])
+    df['y'] = df['y'].astype(float)
     
-    if len(X) < 3:
-        # Jika data kurang, gunakan rata-rata
-        pred_value = np.mean(y)
-    else:
-        # Gunakan polynomial regression degree 2 jika data cukup
-        poly = PolynomialFeatures(degree=2)
-        X_poly = poly.fit_transform(X)
-        model = LinearRegression()
-        model.fit(X_poly, y)
-        # Prediksi untuk bulan berikutnya
-        next_period = len(X) + months_ahead
-        X_pred = poly.transform([[next_period]])
-        pred_value = model.predict(X_pred)[0]
-        if pred_value < 0:
-            pred_value = np.mean(y)  # fallback
+    # If too few points, adjust changepoints
+    n_changepoints = min(5, len(df) - 1)
+    model = Prophet(
+        yearly_seasonality=False,
+        weekly_seasonality=False,
+        daily_seasonality=False,
+        changepoint_prior_scale=0.05,
+        n_changepoints=n_changepoints,
+    )
+    model.fit(df)
     
-    # Siapkan data untuk visualisasi (history + prediksi)
-    last_month = monthly['year_month'].max()
-    # Tambahkan prediksi untuk bulan depan
-    next_month = last_month + 1
-    # History
-    history = monthly[['period', 'total_value']].copy()
-    history['total_value'] = history['total_value'] / 1_000_000  # juta
-    history['type'] = 'realisasi'
-    # Prediksi untuk bulan depan
-    pred_row = pd.DataFrame({
-        'period': [next_month],
-        'total_value': [pred_value],
-        'type': ['prediksi']
-    })
-    combined = pd.concat([history, pred_row], ignore_index=True)
-    # Format bulan
-    combined['bulan'] = combined['period'].apply(lambda x: f'Bulan {x}')
-    return combined.to_dict('records'), pred_value
+    future = model.make_future_dataframe(periods=periods, freq='MS')
+    forecast = model.predict(future)
+    
+    forecasted = forecast[['ds', 'yhat', 'yhat_lower', 'yhat_upper']].tail(periods)
+    
+    result = {
+        'forecast': [],
+        'next_value': None,
+    }
+    
+    for _, row in forecasted.iterrows():
+        result['forecast'].append({
+            'ds': row['ds'].isoformat(),
+            'yhat': round(row['yhat'], 2),
+            'yhat_lower': round(row['yhat_lower'], 2),
+            'yhat_upper': round(row['yhat_upper'], 2),
+        })
+    
+    if not forecasted.empty:
+        result['next_value'] = round(forecasted.iloc[-1]['yhat'], 2)
+    
+    return result

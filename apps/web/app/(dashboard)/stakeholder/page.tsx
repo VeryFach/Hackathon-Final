@@ -6,14 +6,15 @@ import dynamic from "next/dynamic";
 import axios from "axios";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Loader2 } from "lucide-react";
 
-// Dynamic import untuk menghindari 'window is not defined' di server
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
 const API_URL = process.env.NEXT_PUBLIC_AI_SERVICE_URL || "http://localhost:8000";
 
-// Data dummy sebagai fallback jika API tidak tersedia
 const FALLBACK_COORDINATES = [
   { latitude: -6.2, longitude: 106.8 },
   { latitude: -6.3, longitude: 106.9 },
@@ -23,23 +24,32 @@ const FALLBACK_COORDINATES = [
 ];
 
 export default function StakeholderPage() {
-  // 🔥 Hanya satu state untuk coordinates
   const [coordinates, setCoordinates] = useState(FALLBACK_COORDINATES);
   const [clusters, setClusters] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [loadingDepositors, setLoadingDepositors] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Fungsi fetch clustering, menerima koordinat sebagai parameter
+  // State untuk kontrol cluster
+  const [clusterMode, setClusterMode] = useState<"auto" | "manual">("auto");
+  const [manualClusters, setManualClusters] = useState<number>(3);
+
   const fetchClusters = async (coords: typeof coordinates) => {
     if (!coords || coords.length === 0) return;
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.post(`${API_URL}/cluster`, {
+      // Tentukan payload
+      const payload: any = {
         coordinates: coords,
-        n_clusters: 3,
-      });
+      };
+      if (clusterMode === "manual") {
+        payload.n_clusters = manualClusters;
+      } else {
+        payload.n_clusters = null; // auto
+      }
+      
+      const response = await axios.post(`${API_URL}/cluster`, payload);
       setClusters(response.data);
     } catch (err: any) {
       console.error("❌ Cluster error:", err);
@@ -59,20 +69,20 @@ export default function StakeholderPage() {
           // Setelah dapat data, langsung fetch clustering
           await fetchClusters(response.data);
         } else {
-          // Jika data kosong, pakai fallback
           await fetchClusters(FALLBACK_COORDINATES);
         }
       } catch (err) {
         console.error("❌ Failed to fetch depositors:", err);
-        // Fallback ke dummy
         await fetchClusters(FALLBACK_COORDINATES);
       } finally {
         setLoadingDepositors(false);
       }
     };
     fetchDepositors();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Efek untuk refetch saat mode atau jumlah cluster berubah
   const handleRefresh = () => {
     fetchClusters(coordinates);
   };
@@ -88,12 +98,47 @@ export default function StakeholderPage() {
 
   return (
     <div className="space-y-6 p-6">
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-center flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Stakeholder Dashboard</h1>
-        <Button onClick={handleRefresh} disabled={loading}>
-          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Refresh Clustering
-        </Button>
+        <div className="flex items-center gap-4">
+          {/* Kontrol clustering */}
+          <div className="flex items-center gap-2">
+            <RadioGroup
+              value={clusterMode}
+              onValueChange={(val) => setClusterMode(val as "auto" | "manual")}
+              className="flex items-center gap-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="auto" id="auto" />
+                <Label htmlFor="auto">Otomatis</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="manual" id="manual" />
+                <Label htmlFor="manual">Manual</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          {clusterMode === "manual" && (
+            <div className="flex items-center gap-2">
+              <Label htmlFor="n_clusters" className="whitespace-nowrap">
+                Jumlah Cluster:
+              </Label>
+              <Input
+                id="n_clusters"
+                type="number"
+                min={2}
+                max={10}
+                value={manualClusters}
+                onChange={(e) => setManualClusters(Number(e.target.value))}
+                className="w-20"
+              />
+            </div>
+          )}
+          <Button onClick={handleRefresh} disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Refresh
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -106,6 +151,7 @@ export default function StakeholderPage() {
             {error && <p className="text-red-500 text-sm mt-2">Error: {error}</p>}
             <p className="text-xs text-muted-foreground mt-2">
               {coordinates.length} penyetor di peta
+              {clusters && ` | Cluster digunakan: ${clusters.n_clusters_used}`}
             </p>
           </CardContent>
         </Card>
@@ -150,9 +196,9 @@ export default function StakeholderPage() {
             <CardContent>
               {loading ? (
                 <p className="text-muted-foreground">Memuat rekomendasi...</p>
-              ) : clusters?.recommended_centroids ? (
+              ) : clusters?.centroids ? (
                 <div className="space-y-2">
-                  {clusters.recommended_centroids.map((centroid: number[], idx: number) => (
+                  {clusters.centroids.map((centroid: number[], idx: number) => (
                     <div key={idx} className="p-2 bg-muted/20 rounded-sm border border-border">
                       <p className="font-mono text-sm">
                         Lokasi {idx + 1}: {centroid[0].toFixed(4)}, {centroid[1].toFixed(4)}
