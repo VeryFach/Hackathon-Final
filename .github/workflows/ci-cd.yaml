@@ -1,0 +1,83 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main # Trigger saat push ke main branch
+
+jobs:
+  # Tahap 1: Continuous Integration (CI) - Testing & Linting
+  test:
+    name: Run Linter and Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      # Setup untuk ekosistem Node.js (Next.js & NestJS)
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+
+      # Setup untuk ekosistem Python (FastAPI)
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.11
+
+      # Install Dependencies
+      - name: Install Node Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Python Dependencies
+        run: |
+          cd apps/ai-service
+          uv pip install --system -r requirements.txt
+
+      # Jalankan Linter & Test
+      - name: Run Linter
+        run: pnpm turbo run lint
+        continue-on-error: true
+
+      - name: Run Tests (Jika ada)
+        run: pnpm turbo run test
+        continue-on-error: true # Opsional: Ubah ke false jika test wajib pass 100%
+
+  # Tahap 2: Continuous Deployment (CD) - Deploy ke Server
+  deploy:
+    name: Deploy to Server Panitia
+    runs-on: ubuntu-latest
+    # needs: test # WAJIB: Hanya jalan jika job 'test' sukses
+    steps:
+      - name: Deploying App to Server
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+              # Tambahkan ini biar kalau ada error, script langsung berhenti dan lapor 'Failed'
+              set -e 
+
+              # 1. Pindah ke direktori repository di server
+              cd ~/home/hackathon
+
+              # 2. Tarik kode terbaru dari Github
+              git pull origin main
+
+              # 3. Build ulang container
+              docker compose up -d --build
+
+              # 4. Bersihkan cache build docker biar disk gak penuh lagi
+              docker builder prune -f
+              docker image prune -f
