@@ -73,7 +73,7 @@ export const CONFIG = {
         id: "pg-batch-create",
         label: "Buat Batch",
         icon: Layers,
-        href: "/pengepul/batch/new",
+        href: "/pengepul/batches/new",
       },
       {
         id: "pg-batch-history",

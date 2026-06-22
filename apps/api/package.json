@@ -9,9 +9,11 @@
     "node": ">=22.0.0"
   },
   "scripts": {
+    "postinstall": "prisma generate",
     "build": "prisma generate && nest build",
     "start": "npx prisma migrate deploy && nest start",
-    "dev": "npx prisma generate && npx prisma db push && nest start --watch",
+    "dev": "nest start --watch --builder swc",
+    "dev:full": "npx prisma generate && npx prisma db push && nest start --watch --builder swc",
     "prod": "npx prisma migrate deploy && node dist/src/main.js",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "debug": "nest start --debug --watch",

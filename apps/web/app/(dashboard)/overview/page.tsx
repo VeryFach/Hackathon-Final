@@ -6,7 +6,14 @@ import {
 } from "recharts";
 import { Activity, ArrowUpRight, ArrowDownRight, AlertTriangle, CheckCircle2, Info } from "lucide-react";
 import { CONFIG } from "@/lib/config";
-import { T, STATUS_MAP, ALERT_ICON, ChartTooltipStyle, AxisTickStyle } from "@/lib/design-tokens";
+import { T, STATUS_MAP, ChartTooltipStyle, AxisTickStyle } from "@/lib/design-tokens";
+
+const ALERT_ICON: Record<string, React.ComponentType<{ size?: number }>> = {
+  danger: AlertTriangle,
+  warning: AlertTriangle,
+  success: CheckCircle2,
+  info: Info,
+};
 
 /* ── MetricCard ── */
 function MetricCard({ label, value, unit, color, trend }: {

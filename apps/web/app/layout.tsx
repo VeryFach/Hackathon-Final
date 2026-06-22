@@ -1,22 +1,17 @@
-"use client";
-
-import React from "react";
 import "./globals.css";
-import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/react-query";
-import { Toaster } from "sonner";
-import { UserProvider } from "@/lib/user-context";
+import { Providers } from "@/components/providers";
+
+export const metadata = {
+  title: "Ngepulin",
+};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="id">
       <body className="bg-background text-foreground antialiased">
-        <QueryClientProvider client={queryClient}>
-          <UserProvider>
-            {children}
-            <Toaster position="top-right" richColors />
-          </UserProvider>
-        </QueryClientProvider>
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );

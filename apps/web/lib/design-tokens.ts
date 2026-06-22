@@ -1,5 +1,3 @@
-import { AlertTriangle, CheckCircle2, Info } from "lucide-react";
-
 /**
  * Semantic design tokens matching the template design system.
  * Ganti --accent-hue di globals.css untuk ubah warna utama.
@@ -21,14 +19,6 @@ export const STATUS_MAP: Record<string, { label: string; color: string }> = {
   danger: { label: "Kritis", color: T.danger },
   info: { label: "Info", color: T.info },
   success: { label: "Baik", color: T.success },
-};
-
-/** Alert icon mapping */
-export const ALERT_ICON: Record<string, React.ComponentType<{ size?: number }>> = {
-  danger: AlertTriangle,
-  warning: AlertTriangle,
-  success: CheckCircle2,
-  info: Info,
 };
 
 /** Shared chart tooltip style */

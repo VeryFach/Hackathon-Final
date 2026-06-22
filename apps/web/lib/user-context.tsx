@@ -1,63 +1,44 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "@/lib/axios"; // Sesuaikan path ini dengan lokasi axios instance Anda
 
-interface User {
+// Tambahkan properti lain seperti role jika diperlukan
+export interface User {
   id: string;
   email: string;
   fullName: string;
+  role?: string; 
 }
 
-interface UserContextType {
-  user: User | null;
-  loading: boolean;
-  fetchUser: () => Promise<void>;
-}
-
-const UserContext = createContext<UserContextType | undefined>(undefined);
-
-export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchUser = async () => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}/users/me`,
-        {
-          credentials: "include",
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch user");
-      }
-
-      const userData = await response.json();
-      setUser(userData);
-    } catch (err) {
-      console.error("Error fetching user:", err);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchUser();
-  }, []);
-
-  return (
-    <UserContext.Provider value={{ user, loading, fetchUser }}>
-      {children}
-    </UserContext.Provider>
-  );
-}
+// Fungsi fetcher menggunakan axios
+const fetchCurrentUser = async (): Promise<User> => {
+  // Gunakan endpoint yang sesuai, misalnya /users/me atau /auth/user/me
+  const response = await api.get("/users/me");
+  return response.data;
+};
 
 export function useUser() {
-  const context = useContext(UserContext);
-  if (!context) {
-    throw new Error("useUser must be used within UserProvider");
-  }
-  return context;
+  const {
+    data: user = null, // Default null jika belum ada data
+    isLoading: loading,
+    refetch,
+    isError,
+    error,
+  } = useQuery<User, Error>({
+    queryKey: ["currentUser"],
+    queryFn: fetchCurrentUser,
+    retry: false, // Jangan di-retry berulang kali jika user memang belum login (401)
+    staleTime: 5 * 60 * 1000, // Opsional: Data dianggap fresh selama 5 menit
+  });
+
+  return {
+    user,
+    loading,
+    // Kita aliaskan refetch bawaan React Query menjadi fetchUser agar 
+    // kompatibel dengan komponen Anda yang mungkin sudah menggunakan nama ini.
+    fetchUser: refetch, 
+    isError,
+    error,
+  };
 }

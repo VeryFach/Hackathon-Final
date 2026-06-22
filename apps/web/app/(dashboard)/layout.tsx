@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -19,6 +19,7 @@ import { CONFIG } from "@/lib/config";
 import { T } from "@/lib/design-tokens";
 import { cn } from "@/lib/utils";
 import { useUser } from "@/lib/user-context";
+import { LoadingSpinner } from "@/components/loading-spinner";
 
 export default function DashboardLayout({
   children,
@@ -32,13 +33,43 @@ export default function DashboardLayout({
   const [search, setSearch] = useState("");
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const { user, loading: userLoading } = useUser();
+  const { user, loading: userLoading, isError } = useUser();
 
+  useEffect(() => {
+    if (!userLoading && (isError || !user)) {
+      router.replace("/login");
+    }
+  }, [user, userLoading, isError, router]);
+
+  useEffect(() => {
+    const handleClickOutside = () => {
+      if (profileOpen) setProfileOpen(false);
+    };
+
+    if (profileOpen) {
+      document.addEventListener("click", handleClickOutside);
+
+      return () => {
+        document.removeEventListener("click", handleClickOutside);
+      };
+    }
+  }, [profileOpen]);
+
+  if (userLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center gap-2">
+        <LoadingSpinner />
+        <span>Memuat aplikasi...</span>
+      </div>
+    );
+  }
+
+  if (!user) return null;
   // =========================
   // ROLE + NAV CONFIG
   // =========================
   const role = user?.role ?? "masyarakat";
-  const navItems = CONFIG.navItems[role];
+  const navItems = (CONFIG.navItems as unknown as Record<string, { id: string; label: string; icon: any; href: string; exact?: boolean }[]>)[role] ?? [];
 
   // =========================
   // ACTIVE ITEM (GLOBAL SEARCH)
@@ -74,17 +105,6 @@ export default function DashboardLayout({
     if (action === "logout") handleLogout();
     if (action === "settings") navigate("/settings");
   };
-
-  React.useEffect(() => {
-    const handleClickOutside = () => {
-      if (profileOpen) setProfileOpen(false);
-    };
-
-    if (profileOpen) {
-      document.addEventListener("click", handleClickOutside);
-      return () => document.removeEventListener("click", handleClickOutside);
-    }
-  }, [profileOpen]);
 
   return (
     <div className="bg-background text-foreground min-h-screen">
