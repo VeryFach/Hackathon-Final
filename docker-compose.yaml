@@ -19,12 +19,14 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+    env_file:
+      - .env
     restart: always
     ports:
       - "3001:3001"
     environment:
       - DATABASE_URL=postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-hackathon_db}?schema=public
-      - JWT_SECRET=${JWT_SECRET:-supersecret}
+      - JWT_SECRET=${JWT_SECRET}
     depends_on:
       db:
         condition: service_healthy
