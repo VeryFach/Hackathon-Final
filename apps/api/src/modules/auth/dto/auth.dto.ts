@@ -5,8 +5,10 @@ import {
   IsOptional,
   IsString,
   MinLength,
+  IsIn,
 } from 'class-validator';
 import { IRegisterDto, ILoginDto } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 
 export class RegisterDto implements IRegisterDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -21,9 +23,21 @@ export class RegisterDto implements IRegisterDto {
   password!: string;
 
   @ApiProperty({ example: 'John Doe', required: false })
+  @IsOptional()
   @IsString()
   @IsNotEmpty()
-  fullName!: string;
+  fullName?: string;
+
+  @ApiProperty({
+    enum: UserRole,
+    required: false,
+    default: UserRole.masyarakat,
+    description: 'Default: masyarakat'
+  })
+  @IsOptional()
+  @IsString()
+  @IsIn(Object.values(UserRole))
+  role?: UserRole;
 }
 
 export class LoginDto implements ILoginDto {

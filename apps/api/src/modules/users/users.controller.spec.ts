@@ -33,7 +33,7 @@ describe('UsersController', () => {
         id: 'uuid-789',
         email: 'charlie@example.com',
         fullName: 'Charlie Chaplin',
-        role: 'user',
+        role: 'masyarakat',
       };
       mockUsersService.getMe.mockResolvedValue(expectedUser);
 
@@ -61,7 +61,7 @@ describe('UsersController', () => {
         id: 'uuid-789',
         email: 'newemail@example.com',
         fullName: 'Charlie Chaplin',
-        role: 'user',
+        role: 'masyarakat',
       };
       mockUsersService.editUser.mockResolvedValue(updatedUser);
 
@@ -78,7 +78,7 @@ describe('UsersController', () => {
         id: 'uuid-789',
         email: 'charlie@example.com',
         fullName: 'New Name',
-        role: 'user',
+        role: 'masyarakat',
       };
       mockUsersService.editUser.mockResolvedValue(updatedUser);
 

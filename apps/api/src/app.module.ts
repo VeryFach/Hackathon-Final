@@ -5,6 +5,9 @@ import { AppService } from './app.service.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { PrismaModule } from './modules/prisma/prisma.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { ProfilesModule } from './modules/profile/profiles.module.js';
+import { SubmissionsModule } from './modules/submissions/submissions.module.js';
+import { BatchesModule } from './modules/batches/batches.module.js';
 
 @Module({
   imports: [
@@ -12,6 +15,9 @@ import { AuthModule } from './modules/auth/auth.module.js';
     PrismaModule,
     AuthModule,
     UsersModule,
+    ProfilesModule,
+    SubmissionsModule,
+    BatchesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

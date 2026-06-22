@@ -15,7 +15,7 @@ import { AuthService } from './auth.service.js';
 import { RegisterDto, LoginDto } from './dto/auth.dto.js';
 import { GoogleGuard } from './guard/google.guard.js';
 import { type Response } from 'express';
-import { ZodValidationPipe } from 'src/lib/pipes/zod.pipe';
+import { ZodValidationPipe } from '../../lib/pipes/zod.pipe.js';
 import { RegisterSchema, LoginSchema } from '@repo/dto';
 
 /** Opsi default untuk cookie autentikasi */

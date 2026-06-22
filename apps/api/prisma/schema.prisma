@@ -12,22 +12,234 @@ datasource db {
 }
 
 enum UserRole {
+  stakeholder
   masyarakat
-  user
+  pengepul
+}
+
+enum SubmissionStatus {
+  pending
+  accepted
+  picked_up
+  in_batch
+  completed
+}
+
+enum BatchStatus {
+  draft
+  sent
+  approved
+  rejected
+}
+
+enum OilGrade {
+  A
+  B
+  C
+}
+
+enum PayoutStatus {
+  pending
+  paid
 }
 
 model User {
-  id           String @id @default(uuid())
-  fullName     String @map("full_name")
-  email        String @unique
-  passwordHash String @map("password_hash")
+  id           String   @id @default(uuid())
+  fullName     String   @map("full_name")
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole
 
-  role UserRole @default(user)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  collectorProfile CollectorProfile?
+  depositorProfile DepositorProfile?
+
+  pricingConfigs   Pricing[]
+  validatedBatches Batch[]
 
   @@map("users")
 }
 
-model 
+model DepositorProfile {
+  id          String  @id @default(uuid())
+  userId      String  @unique
+  user        User    @relation(fields: [userId], references: [id])
+
+  latitude    Decimal @db.Decimal(10, 8)
+  longitude   Decimal @db.Decimal(11, 8)
+  address     String
+
+  submissions OilSubmission[]
+
+  @@map("depositor_profiles")
+}
+
+model CollectorProfile {
+  id               String  @id @default(uuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id])
+
+  latitude         Decimal @db.Decimal(10, 8)
+  longitude        Decimal @db.Decimal(11, 8)
+
+  warehouseAddress String  @map("warehouse_address")
+  serviceRadiusKm  Float   @map("service_radius_km")
+  capacityLiter    Int     @map("capacity_liter")
+
+  submissions      OilSubmission[]
+  batches          Batch[]
+
+  @@map("collector_profiles")
+}
+
+model OilSubmission {
+  id              String           @id @default(uuid())
+
+  estimatedLiter  Float            @map("estimated_liter")
+  actualLiter     Float?           @map("actual_liter")
+
+  status          SubmissionStatus @default(pending)
+
+  depositorId     String
+  depositor       DepositorProfile @relation(fields: [depositorId], references: [id])
+
+  collectorId     String?
+  collector       CollectorProfile? @relation(fields: [collectorId], references: [id])
+
+  batchItems      BatchItem[]
+  payout          Payout?
+
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@map("oil_submissions")
+}
+
+model Batch {
+  id                 String      @id @default(uuid())
+
+  collectorId        String
+  collector          CollectorProfile @relation(fields: [collectorId], references: [id])
+
+  validatedBy        String
+  validator          User        @relation(fields: [validatedBy], references: [id])
+
+  totalRawOilLiter   Float       @map("total_raw_oil_liter")
+  totalCleanOilLiter Float       @map("total_clean_oil_liter")
+  residueLiter       Float       @map("residue_liter")
+
+  sedimentRatio      Decimal     @db.Decimal(5,4) @map("sediment_ratio")
+  yieldRatio         Decimal     @db.Decimal(5,4) @map("yield_ratio")
+
+  totalLiter         Float       @map("total_liter")
+  status             BatchStatus
+
+  batchItems         BatchItem[]
+  labResult          LabResult?
+  batchPricing       BatchPricing?
+
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  @@map("batches")
+}
+
+model BatchItem {
+  id            String @id @default(uuid())
+
+  batchId       String
+  batch         Batch  @relation(fields: [batchId], references: [id])
+
+  submissionId  String
+  submission    OilSubmission @relation(fields: [submissionId], references: [id])
+
+  @@map("batch_items")
+}
+
+model LabResult {
+  id                 String   @id @default(uuid())
+
+  batchId            String   @unique
+  batch              Batch    @relation(fields: [batchId], references: [id])
+
+  acidityLevel       Float    @map("acidity_level")
+  impurityLevel      Float    @map("impurity_level")
+  waterContent       Float    @map("water_content")
+  notes              String?
+
+  grade              OilGrade
+  testedAt           DateTime @default(now()) @map("tested_at")
+
+  @@map("lab_results")
+}
+
+model Pricing {
+  id            String   @id @default(uuid())
+
+  createdBy     String
+  creator       User     @relation(fields: [createdBy], references: [id])
+
+  active        Boolean
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  gradeRules    GradeRule[]
+  volumeRules   VolumeRule[]
+  batchPricings BatchPricing[]
+
+  @@map("pricings")
+}
+
+model GradeRule {
+  id              String   @id @default(uuid())
+  pricingId       String
+  pricing         Pricing  @relation(fields: [pricingId], references: [id])
+
+  grade           OilGrade
+  basePrice       Float    @map("base_price")
+  qualityFactor   Float    @map("quality_factor")
+
+  @@map("grade_rules")
+}
+
+model VolumeRule {
+  id              String   @id @default(uuid())
+  pricingId       String
+  pricing         Pricing  @relation(fields: [pricingId], references: [id])
+
+  minVolume       Float    @map("min_volume")
+  maxVolume       Float?   @map("max_volume")
+  bonusFactor     Float    @map("bonus_factor")
+
+  @@map("volume_rules")
+}
+
+model BatchPricing {
+  id                 String   @id @default(uuid())
+
+  batchId            String   @unique
+  batch              Batch    @relation(fields: [batchId], references: [id])
+
+  pricingId          String
+  pricing            Pricing  @relation(fields: [pricingId], references: [id])
+
+  finalPricePerLiter Float    @map("final_price_per_liter")
+  totalValue         Float    @map("total_value")
+
+  calculatedAt       DateTime @default(now()) @map("calculated_at")
+
+  @@map("batch_pricings")
+}
+
+model Payout {
+  id            String       @id @default(uuid())
+
+  submissionId  String       @unique
+  submission    OilSubmission @relation(fields: [submissionId], references: [id])
+
+  amount        Float
+  status        PayoutStatus
+
+  paidAt        DateTime? @map("paid_at")
+
+  @@map("payouts")
+}

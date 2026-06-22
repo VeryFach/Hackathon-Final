@@ -107,7 +107,7 @@ describe('UsersService', () => {
 
       expect(mockPrisma.user.update).toHaveBeenCalledWith({
         where: { id: 'uuid-456' },
-        data: { name: 'New Name' },
+        data: { fullName: 'New Name' },
       });
 
       expect(result).not.toHaveProperty('passwordHash');
