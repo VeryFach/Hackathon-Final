@@ -383,7 +383,6 @@ export default function PrediksiDanaPage() {
                   stroke="#d97706"
                   name="Prediksi"
                   strokeWidth={3}
-                  strokeDasharray="8 4"
                   dot={{ r: 6, fill: "#d97706" }}
                   activeDot={{ r: 10 }}
                   connectNulls={false}
