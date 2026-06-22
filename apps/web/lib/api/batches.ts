@@ -5,7 +5,7 @@ import { api } from "@/lib/axios";
 export interface Batch {
   id: string;
   collectorId: string;
-  validatedBy: string;
+  validatedBy: string | null;
   totalRawOilLiter: number;
   totalCleanOilLiter: number;
   residueLiter: number;
@@ -49,9 +49,7 @@ export interface Batch {
   } | null;
 }
 
-export interface CreateBatchDto {
-  name?: string;
-}
+export type CreateBatchDto = Record<string, never>;
 
 export interface AddBatchItemsDto {
   submissionIds: string[];
@@ -60,6 +58,7 @@ export interface AddBatchItemsDto {
 export interface ProcessBatchDto {
   rawOil: number;
   residue: number;
+  processLoss?: number;
 }
 
 // ==================== API FUNCTIONS ====================
@@ -87,6 +86,16 @@ export const batchService = {
 
   getById: async (batchId: string): Promise<Batch> => {
     const response = await api.get(`/batches/${batchId}`);
+    return response.data;
+  },
+
+  findMine: async (): Promise<Batch[]> => {
+    const response = await api.get("/batches/me");
+    return response.data;
+  },
+
+  findAllForStakeholder: async (): Promise<Batch[]> => {
+    const response = await api.get("/batches");
     return response.data;
   },
 };

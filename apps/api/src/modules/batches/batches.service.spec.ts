@@ -25,6 +25,14 @@ describe('BatchesService', () => {
     status: BatchStatus.draft,
   };
 
+  const mockBatchWithItems = (actualLiters: number[]) => ({
+    ...mockBatch,
+    batchItems: actualLiters.map((actualLiter, index) => ({
+      id: `bi-${index + 1}`,
+      submission: mockSubmission(`sub-${index + 1}`, SubmissionStatus.in_batch, actualLiter),
+    })),
+  });
+
   const processedBatch = {
     ...mockBatch,
     totalRawOilLiter: 120,
@@ -32,10 +40,15 @@ describe('BatchesService', () => {
     residueLiter: 20,
   };
 
-  const mockSubmission = (id: string, status: SubmissionStatus) => ({
+  const mockSubmission = (
+    id: string,
+    status: SubmissionStatus,
+    actualLiter = 10,
+  ) => ({
     id,
     collectorId: 'col-1',
     status,
+    actualLiter,
   });
 
   beforeEach(async () => {
@@ -54,6 +67,7 @@ describe('BatchesService', () => {
       },
       batchItem: {
         create: jest.fn(),
+        findMany: jest.fn(),
       },
       $transaction: jest.fn((ops: unknown[]) => Promise.all(ops.map(() => ({})))),
     };
@@ -73,7 +87,7 @@ describe('BatchesService', () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
       mockPrisma.batch.create.mockResolvedValue(mockBatch);
 
-      const result = await service.create('user-1', { name: 'Batch June 001' });
+      const result = await service.create('user-1', {});
 
       expect(mockPrisma.collectorProfile.findUnique).toHaveBeenCalledWith({
         where: { userId: 'user-1' },
@@ -86,7 +100,7 @@ describe('BatchesService', () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(null);
 
       await expect(
-        service.create('user-1', { name: 'Batch June 001' }),
+        service.create('user-1', {}),
       ).rejects.toThrow(NotFoundException);
     });
   });
@@ -96,11 +110,12 @@ describe('BatchesService', () => {
 
     it('should add items to a draft batch', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([60, 60]));
       mockPrisma.oilSubmission.findMany.mockResolvedValue([
         mockSubmission('sub-1', SubmissionStatus.picked_up),
         mockSubmission('sub-2', SubmissionStatus.picked_up),
       ]);
+      mockPrisma.batchItem.findMany.mockResolvedValue([]);
       mockPrisma.$transaction.mockResolvedValue([{}, {}, {}, {}]);
       mockPrisma.batch.findUnique.mockResolvedValueOnce(mockBatch).mockResolvedValueOnce({
         ...mockBatch,
@@ -142,7 +157,7 @@ describe('BatchesService', () => {
 
     it('should throw BadRequestException if submission IDs are invalid', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([60, 60]));
       mockPrisma.oilSubmission.findMany.mockResolvedValue([
         mockSubmission('sub-1', SubmissionStatus.picked_up),
       ]); // only 1 of 2
@@ -154,7 +169,7 @@ describe('BatchesService', () => {
 
     it('should throw ForbiddenException if submission not owned by collector', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([60, 60]));
       mockPrisma.oilSubmission.findMany.mockResolvedValue([
         { ...mockSubmission('sub-1', SubmissionStatus.picked_up), collectorId: 'other-col' },
         mockSubmission('sub-2', SubmissionStatus.picked_up),
@@ -167,7 +182,7 @@ describe('BatchesService', () => {
 
     it('should throw BadRequestException if submission not picked_up', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([100]));
       mockPrisma.oilSubmission.findMany.mockResolvedValue([
         mockSubmission('sub-1', SubmissionStatus.accepted), // not picked_up
         mockSubmission('sub-2', SubmissionStatus.picked_up),
@@ -182,7 +197,7 @@ describe('BatchesService', () => {
   describe('process', () => {
     it('should process batch with correct calculations', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([60, 60]));
       mockPrisma.batch.update.mockResolvedValue(processedBatch);
 
       const result = await service.process('batch-1', 'user-1', {
@@ -224,7 +239,7 @@ describe('BatchesService', () => {
 
     it('should throw BadRequestException if residue > rawOil', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([100]));
 
       await expect(
         service.process('batch-1', 'user-1', { rawOil: 10, residue: 20 }),
@@ -233,7 +248,7 @@ describe('BatchesService', () => {
 
     it('should handle zero residue', async () => {
       mockPrisma.collectorProfile.findUnique.mockResolvedValue(mockCollector);
-      mockPrisma.batch.findUnique.mockResolvedValue(mockBatch);
+      mockPrisma.batch.findUnique.mockResolvedValue(mockBatchWithItems([100]));
       mockPrisma.batch.update.mockResolvedValue({ ...mockBatch, totalRawOilLiter: 100 });
 
       await service.process('batch-1', 'user-1', { rawOil: 100, residue: 0 });

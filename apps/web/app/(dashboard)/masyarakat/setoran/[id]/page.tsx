@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
-import { notFound } from "next/navigation";
+import { use } from "react";
 import Link from "next/link";
 import { AppShell, StatusBadge, formatRp } from "@/components/app-shell";
-import { submissionService } from "@/lib/api";
+import { useSubmission } from "@/lib/api/hooks";
 import { ArrowLeft, CheckCircle2, Circle } from "lucide-react";
 
 export default function SetoranDetailPage({
@@ -13,26 +12,9 @@ export default function SetoranDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const [submission, setSubmission] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: submission, isLoading, error } = useSubmission(id);
 
-  useEffect(() => {
-    fetchSubmission();
-  }, [id]);
-
-  const fetchSubmission = async () => {
-    try {
-      const data = await submissionService.getById(id);
-      setSubmission(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat detail setoran");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <AppShell title="Detail Setoran" subtitle="Memuat data...">
         <div className="text-sm text-muted-foreground">Loading...</div>
@@ -41,9 +23,10 @@ export default function SetoranDetailPage({
   }
 
   if (error || !submission) {
+    const errorMessage = (error as any)?.response?.data?.message || "Data tidak ditemukan";
     return (
       <AppShell title="Detail Setoran" subtitle="Error">
-        <div className="text-sm text-red-500">{error || "Data tidak ditemukan"}</div>
+        <div className="text-sm text-red-500">{errorMessage}</div>
         <Link
           href="/masyarakat/setoran"
           className="text-xs text-accent inline-flex items-center gap-1 hover:underline mt-4"
@@ -54,7 +37,7 @@ export default function SetoranDetailPage({
     );
   }
 
-  const s = submission;
+  const s = submission as any;
 
   const statusSteps = ["pending", "accepted", "pickedUp", "processed", "completed"];
   const statusLabels: Record<string, string> = {

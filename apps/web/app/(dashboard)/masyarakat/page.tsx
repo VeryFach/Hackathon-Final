@@ -1,5 +1,4 @@
 "use client";
-import { useState, useEffect } from "react";
 import {
   Droplets,
   Wallet,
@@ -10,7 +9,7 @@ import {
   Circle,
 } from "lucide-react";
 import { AppShell, StatCard, StatusBadge, formatRp } from "@/components/app-shell";
-import { submissionService } from "@/lib/api";
+import { useSubmissions, useMe } from "@/lib/api/hooks";
 import type { Metadata } from "next";
 import Link from "next/link";
 
@@ -25,26 +24,13 @@ const STEP_LABEL: Record<string, string> = {
 };
 
 export default function Page() {
-  const [submissions, setSubmissions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const { data: user } = useMe();
+  const { data: submissions = [], isLoading, error } = useSubmissions();
 
-  useEffect(() => {
-    fetchSubmissions();
-  }, []);
+  // Get user's first name from database
+  const firstName = user?.fullName?.split(' ')[0] || 'User';
 
-  const fetchSubmissions = async () => {
-    try {
-      const data = await submissionService.findMine();
-      setSubmissions(data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal memuat data setoran");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
+  if (isLoading) {
     return (
       <AppShell title="Dashboard" subtitle="Memuat data...">
         <div className="text-sm text-muted-foreground">Loading...</div>
@@ -55,7 +41,9 @@ export default function Page() {
   if (error) {
     return (
       <AppShell title="Dashboard" subtitle="Error">
-        <div className="text-sm text-red-500">{error}</div>
+        <div className="text-sm text-red-500">
+          {(error as any).response?.data?.message || "Gagal memuat data setoran"}
+        </div>
       </AppShell>
     );
   }
@@ -81,17 +69,17 @@ export default function Page() {
   }
 
   const totalLiter = submissions.reduce(
-    (s, x) => s + (x.actualLiter || x.estimatedLiter),
+    (s: number, x: any) => s + (x.actualLiter || x.estimatedLiter),
     0
   );
 
-  const totalRp = submissions.reduce((s, x) => s + (x.payoutAmount || 0), 0);
+  const totalRp = submissions.reduce((s: number, x: any) => s + (x.payout?.amount || 0), 0);
 
   const last = submissions[submissions.length - 1]!;
 
   return (
     <AppShell
-      title="Halo, Andi 👋"
+      title={`Halo, ${firstName} 👋`}
       subtitle="Berikut ringkasan setoran minyak jelantahmu."
       actions={
         <Link

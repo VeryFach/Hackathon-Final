@@ -16,6 +16,13 @@ import {
     CreateCollectorProfileDto,
     UpdateCollectorProfileDto,
 } from './dto';
+import { ZodValidationPipe } from '../../lib/pipes/zod.pipe';
+import {
+    CreateCollectorProfileSchema,
+    CreateDepositorProfileSchema,
+    UpdateCollectorProfileSchema,
+    UpdateDepositorProfileSchema,
+} from '@repo/dto';
 
 @ApiTags('profiles')
 @ApiBearerAuth()
@@ -30,7 +37,7 @@ export class ProfilesController {
     @ApiOperation({ summary: 'Create depositor profile (for masyarakat)' })
     createDepositorProfile(
         @Request() req: any,
-        @Body() dto: CreateDepositorProfileDto,
+        @Body(new ZodValidationPipe(CreateDepositorProfileSchema)) dto: CreateDepositorProfileDto,
     ) {
         const userId = req.user.sub;
         return this.profilesService.createDepositorProfile(userId, dto);
@@ -40,7 +47,7 @@ export class ProfilesController {
     @ApiOperation({ summary: 'Update depositor profile (location/address)' })
     updateDepositorProfile(
         @Request() req: any,
-        @Body() dto: UpdateDepositorProfileDto,
+        @Body(new ZodValidationPipe(UpdateDepositorProfileSchema)) dto: UpdateDepositorProfileDto,
     ) {
         const userId = req.user.sub;
         return this.profilesService.updateDepositorProfile(userId, dto);
@@ -59,7 +66,7 @@ export class ProfilesController {
     @ApiOperation({ summary: 'Create collector profile (for pengepul)' })
     createCollectorProfile(
         @Request() req: any,
-        @Body() dto: CreateCollectorProfileDto,
+        @Body(new ZodValidationPipe(CreateCollectorProfileSchema)) dto: CreateCollectorProfileDto,
     ) {
         const userId = req.user.sub;
         return this.profilesService.createCollectorProfile(userId, dto);
@@ -69,7 +76,7 @@ export class ProfilesController {
     @ApiOperation({ summary: 'Update collector profile (warehouse, radius, capacity)' })
     updateCollectorProfile(
         @Request() req: any,
-        @Body() dto: UpdateCollectorProfileDto,
+        @Body(new ZodValidationPipe(UpdateCollectorProfileSchema)) dto: UpdateCollectorProfileDto,
     ) {
         const userId = req.user.sub;
         return this.profilesService.updateCollectorProfile(userId, dto);

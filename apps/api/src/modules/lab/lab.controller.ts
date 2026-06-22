@@ -19,9 +19,11 @@ import { LabService } from './lab.service.js';
 import { JwtGuard } from '../auth/guard/jwt.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../auth/decorator/roles.decorator.js';
+import { GetUser } from '../auth/decorator/get-user.decorator.js';
 import { ZodValidationPipe } from '../../lib/pipes/zod.pipe.js';
 import { CreateLabResultSchema, RejectLabSchema } from '@repo/dto';
 import type { ICreateLabResultDto, IRejectLabDto } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('lab')
 @ApiBearerAuth()
@@ -57,12 +59,17 @@ export class LabController {
   }
 
   @Get(':batchId')
+  @Roles('pengepul', 'stakeholder')
   @ApiOperation({ summary: 'Get lab result for specific batch' })
   @ApiParam({ name: 'batchId', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 200, description: 'Lab result returned with batch info' })
   @ApiResponse({ status: 404, description: 'Batch or lab result not found' })
-  findByBatch(@Param('batchId') batchId: string) {
-    return this.labService.findByBatch(batchId);
+  findByBatch(
+    @Param('batchId') batchId: string,
+    @GetUser('id') userId: string,
+    @GetUser('role') role: UserRole,
+  ) {
+    return this.labService.findByBatch(batchId, userId, role);
   }
 
   @Patch(':batchId/approve')
@@ -72,8 +79,11 @@ export class LabController {
   @ApiResponse({ status: 200, description: 'Batch approved successfully' })
   @ApiResponse({ status: 400, description: 'No lab result or already finalized' })
   @ApiResponse({ status: 404, description: 'Batch not found' })
-  approve(@Param('batchId') batchId: string) {
-    return this.labService.approve(batchId);
+  approve(
+    @Param('batchId') batchId: string,
+    @GetUser('id') userId: string,
+  ) {
+    return this.labService.approve(batchId, userId);
   }
 
   @Patch(':batchId/reject')
@@ -94,8 +104,9 @@ export class LabController {
   @ApiResponse({ status: 404, description: 'Batch not found' })
   reject(
     @Param('batchId') batchId: string,
+    @GetUser('id') userId: string,
     @Body(new ZodValidationPipe(RejectLabSchema)) dto: IRejectLabDto,
   ) {
-    return this.labService.reject(batchId, dto);
+    return this.labService.reject(batchId, userId, dto);
   }
 }

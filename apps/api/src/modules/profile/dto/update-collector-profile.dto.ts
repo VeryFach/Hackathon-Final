@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsOptional, IsNumber, Min, Matches } from 'class-validator';
+import { IsString, IsOptional, IsNumber, IsInt, Min, Matches } from 'class-validator';
 import { IUpdateCollectorProfileDto } from '@repo/dto';
 
 export class UpdateCollectorProfileDto implements IUpdateCollectorProfileDto {
@@ -29,6 +29,7 @@ export class UpdateCollectorProfileDto implements IUpdateCollectorProfileDto {
     @ApiProperty({ example: 1200, required: false })
     @IsOptional()
     @IsNumber()
+    @IsInt()
     @Min(0)
     capacityLiter?: number;
 }

@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsNumber, Min, Matches } from 'class-validator';
+import { IsString, IsNotEmpty, IsNumber, IsInt, Min, Matches } from 'class-validator';
 import { ICreateCollectorProfileDto } from '@repo/dto';
 
 export class CreateCollectorProfileDto implements ICreateCollectorProfileDto {
@@ -28,6 +28,7 @@ export class CreateCollectorProfileDto implements ICreateCollectorProfileDto {
 
     @ApiProperty({ example: 1000, description: 'Capacity in liters' })
     @IsNumber()
+    @IsInt()
     @IsNotEmpty()
     @Min(0)
     capacityLiter!: number;

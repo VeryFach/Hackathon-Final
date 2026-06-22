@@ -4,7 +4,7 @@ export const RegisterSchema = z.object({
     email: z.string().email(),
     password: z.string().min(6),
     fullName: z.string().optional(),
-    role: z.enum(['stakeholder', 'masyarakat', 'pengepul']).optional(),
+    role: z.enum(['masyarakat', 'pengepul']).optional(),
 });
 
 export const LoginSchema = z.object({

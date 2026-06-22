@@ -122,8 +122,8 @@ model Batch {
   collectorId        String
   collector          CollectorProfile @relation(fields: [collectorId], references: [id])
 
-  validatedBy        String
-  validator          User        @relation(fields: [validatedBy], references: [id])
+  validatedBy        String?
+  validator          User?       @relation(fields: [validatedBy], references: [id])
 
   totalRawOilLiter   Float       @map("total_raw_oil_liter")
   totalCleanOilLiter Float       @map("total_clean_oil_liter")
@@ -153,6 +153,7 @@ model BatchItem {
   submissionId  String
   submission    OilSubmission @relation(fields: [submissionId], references: [id])
 
+  @@unique([submissionId])
   @@map("batch_items")
 }
 

@@ -65,10 +65,12 @@ describe('PayoutsService', () => {
       },
       oilSubmission: {
         findUnique: jest.fn(),
+        update: jest.fn(),
       },
       depositorProfile: {
         findUnique: jest.fn(),
       },
+      $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -189,6 +191,7 @@ describe('PayoutsService', () => {
     it('should mark payout as paid', async () => {
       mockPrisma.payout.findUnique.mockResolvedValue(mockPayout(PayoutStatus.pending));
       mockPrisma.payout.update.mockResolvedValue(mockPayout(PayoutStatus.paid));
+      mockPrisma.oilSubmission.update.mockResolvedValue({ id: 'sub-1', status: 'completed' });
 
       const result = await service.pay('pay-1');
 
@@ -199,6 +202,11 @@ describe('PayoutsService', () => {
           paidAt: expect.any(Date),
         }),
       });
+      expect(mockPrisma.oilSubmission.update).toHaveBeenCalledWith({
+        where: { id: 'sub-1' },
+        data: { status: 'completed' },
+      });
+      expect(mockPrisma.$transaction).toHaveBeenCalled();
       expect(result.status).toBe(PayoutStatus.paid);
     });
 

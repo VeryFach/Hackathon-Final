@@ -1,8 +1,6 @@
 import { z } from 'zod';
 
-export const CreateBatchSchema = z.object({
-  name: z.string().min(1, 'Batch name is required'),
-});
+export const CreateBatchSchema = z.object({}).strict();
 
 export const AddBatchItemsSchema = z.object({
   submissionIds: z.array(z.string()).min(1, 'At least one submission ID is required'),
