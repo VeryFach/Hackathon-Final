@@ -69,9 +69,7 @@ export default function StakeholderPage() {
     try {
       // Sesuaikan endpoint dan payload dengan backend AI Anda
       // Contoh: memprediksi volume untuk n hari ke depan
-      const response = await axios.post(`${API_URL}/predict`, {
-        days: predictDays
-      });
+      const response = await axios.get(`${API_URL}/predict-fund`);
       setPrediction(response.data);
     } catch (err: any) {
       console.error("❌ Prediction error:", err);
@@ -215,7 +213,7 @@ export default function StakeholderPage() {
             <CardTitle>Peta Persebaran & Rekomendasi</CardTitle>
           </CardHeader>
           <CardContent>
-            <Map points={coordinates} clusters={clusters} />
+            <Map points={coordinates} clusters={clusters}/>
             {error && <p className="text-red-500 text-sm mt-2">Error: {error}</p>}
             <p className="text-xs text-muted-foreground mt-2">
               {coordinates.length} penyetor di peta

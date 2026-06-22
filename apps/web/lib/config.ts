@@ -35,6 +35,7 @@ export const CONFIG = {
         label: "Dashboard",
         icon: LayoutDashboard,
         href: "/masyarakat",
+        exact: true
       },
       {
         id: "ms-create-setoran",
@@ -56,6 +57,7 @@ export const CONFIG = {
         label: "Dashboard",
         icon: LayoutDashboard,
         href: "/pengepul",
+        exact: true
       },
       {
         id: "pg-requests",
@@ -89,6 +91,7 @@ export const CONFIG = {
         label: "Analytics",
         icon: BarChart2,
         href: "/stakeholder",
+        exact: true
       },
       {
         id: "st-approval",

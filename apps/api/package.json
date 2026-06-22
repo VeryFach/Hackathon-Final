@@ -9,7 +9,6 @@
     "node": ">=22.0.0"
   },
   "scripts": {
-    "postinstall": "prisma generate",
     "build": "prisma generate && nest build",
     "start": "npx prisma migrate deploy && nest start",
     "dev": "nest start --watch --builder swc",

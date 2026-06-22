@@ -57,7 +57,11 @@ jobs:
   deploy:
     name: Deploy to Server Panitia
     runs-on: ubuntu-latest
-    # needs: test # WAJIB: Hanya jalan jika job 'test' sukses
+    
+    concurrency: 
+      group: production-deployment
+      cancel-in-progress: true 
+
     steps:
       - name: Deploying App to Server
         uses: appleboy/ssh-action@v1.0.3
