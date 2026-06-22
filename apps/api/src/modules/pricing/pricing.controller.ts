@@ -26,6 +26,7 @@ import {
   CreateGradeRuleSchema,
   CreateVolumeRuleSchema,
 } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 import type {
   ICreatePricingDto,
   ICreateGradeRuleDto,
@@ -40,7 +41,7 @@ export class PricingController {
   constructor(private readonly pricingService: PricingService) {}
 
   @Post()
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Create a new pricing configuration' })
   @ApiBody({
     schema: {
@@ -60,7 +61,7 @@ export class PricingController {
   }
 
   @Post(':id/grade-rules')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Add a grade pricing rule' })
   @ApiParam({ name: 'id', description: 'Pricing config ID', example: 'pricing-uuid-here' })
   @ApiBody({
@@ -85,7 +86,7 @@ export class PricingController {
   }
 
   @Post(':id/volume-rules')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Add a volume pricing rule' })
   @ApiParam({ name: 'id', description: 'Pricing config ID', example: 'pricing-uuid-here' })
   @ApiBody({
@@ -110,7 +111,7 @@ export class PricingController {
   }
 
   @Patch(':id/activate')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Activate pricing configuration (deactivates all others)' })
   @ApiParam({ name: 'id', description: 'Pricing config ID', example: 'pricing-uuid-here' })
   @ApiResponse({ status: 200, description: 'Pricing configuration activated' })
@@ -120,7 +121,7 @@ export class PricingController {
   }
 
   @Post('calculate/:batchId')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Calculate final batch price' })
   @ApiParam({ name: 'batchId', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 201, description: 'Batch pricing calculated and saved' })
@@ -131,7 +132,7 @@ export class PricingController {
   }
 
   @Get()
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Get all pricing configurations' })
   @ApiResponse({ status: 200, description: 'All pricing configurations returned' })
   findAll() {
@@ -139,7 +140,7 @@ export class PricingController {
   }
 
   @Get(':id')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Get pricing configuration detail' })
   @ApiParam({ name: 'id', description: 'Pricing config ID', example: 'pricing-uuid-here' })
   @ApiResponse({ status: 200, description: 'Pricing configuration detail returned' })

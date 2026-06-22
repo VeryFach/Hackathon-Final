@@ -22,16 +22,29 @@ import { notifyAIService } from '../../lib/ai-webhook.js';
 export class BatchesService {
   constructor(private prisma: PrismaService) {}
 
-  async create(userId: string, dto: ICreateBatchDto) {
+  private async getOrCreateCollectorProfile(userId: string) {
     const collectorProfile = await this.prisma.collectorProfile.findUnique({
       where: { userId },
     });
 
-    if (!collectorProfile) {
-      throw new NotFoundException(
-        'Collector profile not found. Please create your collector profile first.',
-      );
+    if (collectorProfile) {
+      return collectorProfile;
     }
+
+    return this.prisma.collectorProfile.create({
+      data: {
+        userId,
+        latitude: '0',
+        longitude: '0',
+        warehouseAddress: 'Belum diatur',
+        serviceRadiusKm: 0,
+        capacityLiter: 0,
+      },
+    });
+  }
+
+  async create(userId: string, dto: ICreateBatchDto) {
+    const collectorProfile = await this.getOrCreateCollectorProfile(userId);
 
     const batch = await this.prisma.batch.create({
       data: {
@@ -55,7 +68,7 @@ export class BatchesService {
     });
 
     if (!collectorProfile) {
-      throw new NotFoundException('Collector profile not found.');
+      return [];
     }
 
     return this.prisma.batch.findMany({

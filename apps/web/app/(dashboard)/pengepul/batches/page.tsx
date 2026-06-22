@@ -4,10 +4,7 @@ import React from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Loader2, AlertCircle } from "lucide-react";
 import { AppShell, StatusBadge, formatRp } from "@/components/app-shell";
-
-// Mock data untuk keperluan fungsi fetcher
-import { batches as mockBatches } from "@/lib/mock-data";
-// import { api } from "@/lib/api"; // Uncomment ini jika menggunakan Axios nantinya
+import { pengepulService } from "@/lib/api";
 
 // --- Tipe Data ---
 type Batch = {
@@ -22,13 +19,7 @@ type Batch = {
 
 // --- Fungsi Fetcher API ---
 const fetchBatches = async (): Promise<Batch[]> => {
-  // --- CONTOH JIKA MENGGUNAKAN API ASLI ---
-  // const response = await api.get("/pengepul/batches");
-  // return response.data;
-
-  // --- MENGGUNAKAN MOCK DATA ---
-  await new Promise((resolve) => setTimeout(resolve, 500)); // Simulasi proses loading
-  return mockBatches;
+  return pengepulService.getBatches();
 };
 
 export default function BatchesPage() {
@@ -36,6 +27,7 @@ export default function BatchesPage() {
   const { data: batches = [], isLoading, isError } = useQuery({
     queryKey: ["pengepul-batches"],
     queryFn: fetchBatches,
+    retry: false,
   });
 
   // 2. Tampilan Loading

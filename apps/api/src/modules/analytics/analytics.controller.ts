@@ -6,6 +6,7 @@ import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../auth/decorator/roles.decorator.js';
 import { GetUser } from '../auth/decorator/get-user.decorator.js';
 import { StakeholderDashboardDto } from '@repo/dto';
+import { UserRole } from '@prisma/client';
 
 @ApiTags('analytics')
 @ApiBearerAuth()
@@ -15,19 +16,19 @@ export class AnalyticsController {
     constructor(private readonly analyticsService: AnalyticsService) { }
 
     @Get('stakeholder')
-    @Roles('stakeholder')
+    @Roles(UserRole.stakeholder)
     getStakeholderDashboard(): Promise<StakeholderDashboardDto> {
         return this.analyticsService.getStakeholderDashboard();
     }
 
     @Get('collector')
-    @Roles('pengepul')
+    @Roles(UserRole.pengepul)
     getCollectorDashboard(@GetUser('id') userId: string) {
         return this.analyticsService.getCollectorDashboard(userId);
     }
 
     @Get('depositor')
-    @Roles('masyarakat')
+    @Roles(UserRole.masyarakat)
     getDepositorDashboard(@GetUser('id') userId: string) {
         return this.analyticsService.getDepositorDashboard(userId);
     }

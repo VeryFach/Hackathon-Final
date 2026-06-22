@@ -5,7 +5,8 @@ import React, { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check, X, RefreshCw, Loader2, AlertCircle, FlaskConical } from "lucide-react";
 import { AppShell, StatusBadge, formatRp } from "@/components/app-shell";
-import { batches as mockBatches } from "@/lib/mock-data";
+import { batchService, labService, pricingService } from "@/lib/api";
+import type { Batch as ApiBatch } from "@/lib/api";
 
 // --- Tipe Data ---
 type Batch = {
@@ -23,14 +24,54 @@ type Batch = {
 };
 
 // --- Fungsi Fetcher ---
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+
+const toViewBatch = (batch: ApiBatch): Batch => {
+  const lab = batch.labResult;
+  const status = batch.status === "sent" ? "pending" : batch.status;
+  const totalLiter = batch.totalLiter || batch.totalCleanOilLiter || batch.totalRawOilLiter;
+
+  return {
+    id: batch.id,
+    pengepul: batch.collector?.user.fullName ?? "Pengepul",
+    createdAt: formatDate(batch.createdAt),
+    estimatedValue: batch.batchPricing?.totalValue ?? 0,
+    totalLiter,
+    jumlahPenyetor: batch.batchItems?.length ?? 0,
+    grade: lab?.grade,
+    ffa: lab?.acidityLevel,
+    moisture: lab?.waterContent,
+    impurity: lab?.impurityLevel,
+    status,
+  };
+};
+
 const fetchAllBatches = async (): Promise<Batch[]> => {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return mockBatches as Batch[];
+  const batches = await batchService.findAllForStakeholder();
+  return batches.map(toViewBatch);
 };
 
 // --- Mutation ---
 const updateBatchStatus = async ({ id, action }: { id: string; action: "approve" | "reject" | "recheck" }) => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
+  if (action === "approve") {
+    const batch = await labService.approve(id);
+    try {
+      await pricingService.calculate(id);
+    } catch {
+      // Pricing can be calculated later if there is no active pricing config yet.
+    }
+    return batch;
+  }
+
+  if (action === "reject") {
+    return labService.reject(id, { reason: "Ditolak oleh stakeholder" });
+  }
+
   return { success: true, id, action };
 };
 

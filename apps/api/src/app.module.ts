@@ -12,6 +12,9 @@ import { LabModule } from './modules/lab/lab.module.js';
 import { PricingModule } from './modules/pricing/pricing.module.js';
 import { PayoutsModule } from './modules/payouts/payouts.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js'
+import { APP_GUARD } from '@nestjs/core';
+import { JwtGuard } from './modules/auth/guard/jwt.guard.js';
+import { RolesGuard } from './modules/auth/guard/roles.guard.js';
 
 @Module({
   imports: [
@@ -28,6 +31,10 @@ import { AnalyticsModule } from './modules/analytics/analytics.module.js'
     AnalyticsModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    { provide: APP_GUARD, useClass: JwtGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
+  ],
 })
 export class AppModule {}

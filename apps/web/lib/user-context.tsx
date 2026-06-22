@@ -1,7 +1,9 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/axios"; // Sesuaikan path ini dengan lokasi axios instance Anda
+import { clearAuthSession, storeCurrentUser } from "@/lib/auth-storage";
 
 // Tambahkan properti lain seperti role jika diperlukan
 export interface User {
@@ -13,8 +15,8 @@ export interface User {
 
 // Fungsi fetcher menggunakan axios
 const fetchCurrentUser = async (): Promise<User> => {
-  // Gunakan endpoint yang sesuai, misalnya /users/me atau /auth/user/me
-  const response = await api.get("/users/me");
+  const response = await api.get("/auth/me");
+  storeCurrentUser(response.data);
   return response.data;
 };
 
@@ -31,6 +33,12 @@ export function useUser() {
     retry: false, // Jangan di-retry berulang kali jika user memang belum login (401)
     staleTime: 5 * 60 * 1000, // Opsional: Data dianggap fresh selama 5 menit
   });
+
+  useEffect(() => {
+    if (isError) {
+      clearAuthSession();
+    }
+  }, [isError]);
 
   return {
     user,

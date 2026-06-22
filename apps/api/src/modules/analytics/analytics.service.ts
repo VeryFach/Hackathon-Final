@@ -98,7 +98,17 @@ export class AnalyticsService {
         });
 
         if (!collectorProfile) {
-            throw new NotFoundException('Collector profile not found.');
+            return {
+                totalCollected: 0,
+                avgYieldRatio: 0,
+                activeBatches: 0,
+                sentBatches: 0,
+                financial: {
+                    totalRevenue: 0,
+                    averagePricePerLiter: 0,
+                    pricedBatches: 0,
+                },
+            };
         }
 
         const [

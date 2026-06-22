@@ -6,30 +6,14 @@ import { useQuery } from "@tanstack/react-query";
 import { Droplets, Users, Truck, Layers, ArrowRight } from "lucide-react";
 
 import { AppShell, StatCard, StatusBadge } from "@/components/app-shell";
-import { batches as mockBatches, incomingRequests as mockRequests, inventory as mockInventory } from "@/lib/mock-data"; 
-// import { api } from "@/lib/api"; // Uncomment ini jika sudah siap pakai Axios
-
-// Fungsi fetcher untuk React Query
-const fetchDashboardData = async () => {
-  // --- CONTOH JIKA MENGGUNAKAN API ASLI ---
-  // const response = await api.get("/pengepul/dashboard");
-  // return response.data;
-
-  // --- MENGGUNAKAN MOCK DATA SEMENTARA ---
-  // Simulasi delay jaringan (opsional, hapus jika tidak perlu)
-  await new Promise((resolve) => setTimeout(resolve, 500));
-  return {
-    inventory: mockInventory,
-    incomingRequests: mockRequests,
-    batches: mockBatches,
-  };
-};
+import { pengepulService } from "@/lib/api";
 
 export default function PengepulHomePage() {
   // Implementasi React Query
   const { data, isLoading, isError } = useQuery({
     queryKey: ["pengepul-dashboard"],
-    queryFn: fetchDashboardData,
+    queryFn: pengepulService.getDashboard,
+    retry: false,
   });
 
   // Tampilan saat loading
@@ -58,7 +42,7 @@ export default function PengepulHomePage() {
   }
 
   // Ekstrak data setelah dipastikan tersedia
-  const { inventory, incomingRequests, batches } = data;
+  const { inventory, incomingRequests, batches, activeDepositors } = data;
   const totalStok = inventory.reduce((s: any, x: any) => s + x.liter, 0);
 
   return (
@@ -70,7 +54,7 @@ export default function PengepulHomePage() {
       */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard label="Total Stok" value={`${totalStok.toFixed(1)} L`} hint="Siap diproses" icon={Droplets} tone="sage" />
-        <StatCard label="Penyetor Aktif" value="84" hint="30 hari terakhir" icon={Users} />
+        <StatCard label="Penyetor Aktif" value={String(activeDepositors)} hint="30 hari terakhir" icon={Users} />
         <StatCard label="Pending Pickup" value={String(incomingRequests.length)} hint="Permintaan baru" icon={Truck} tone="warm" />
         <StatCard label="Batch Aktif" value={String(batches.filter((b: any) => b.status !== "approved").length)} hint="Draft / pending" icon={Layers} />
       </div>

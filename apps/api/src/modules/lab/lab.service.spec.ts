@@ -201,10 +201,30 @@ describe('LabService', () => {
       await expect(service.approve('batch-1')).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if no lab result', async () => {
+    it('should create a default lab result when approving without lab result', async () => {
       mockPrisma.batch.findUnique.mockResolvedValue(mockBatch(BatchStatus.sent, false));
+      mockPrisma.labResult.create.mockResolvedValue(mockLabResult);
+      mockPrisma.batch.update.mockResolvedValue({
+        ...mockBatch(BatchStatus.sent, true),
+        status: BatchStatus.approved,
+      });
 
-      await expect(service.approve('batch-1')).rejects.toThrow(BadRequestException);
+      await service.approve('batch-1');
+
+      expect(mockPrisma.labResult.create).toHaveBeenCalledWith({
+        data: {
+          batchId: 'batch-1',
+          acidityLevel: 1.8,
+          waterContent: 0.2,
+          impurityLevel: 0.1,
+          grade: OilGrade.A,
+          notes: 'Auto-generated from stakeholder approval flow.',
+        },
+      });
+      expect(mockPrisma.batch.update).toHaveBeenCalledWith({
+        where: { id: 'batch-1' },
+        data: { status: BatchStatus.approved },
+      });
     });
 
     it('should throw BadRequestException if already approved', async () => {
@@ -244,10 +264,33 @@ describe('LabService', () => {
       await expect(service.reject('batch-1', dto)).rejects.toThrow(NotFoundException);
     });
 
-    it('should throw BadRequestException if no lab result', async () => {
+    it('should create a default lab result when rejecting without lab result', async () => {
       mockPrisma.batch.findUnique.mockResolvedValue(mockBatch(BatchStatus.sent, false));
+      mockPrisma.labResult.create.mockResolvedValue({
+        ...mockLabResult,
+        grade: OilGrade.C,
+      });
+      mockPrisma.batch.update.mockResolvedValue({
+        ...mockBatch(BatchStatus.sent, true),
+        status: BatchStatus.rejected,
+      });
 
-      await expect(service.reject('batch-1', dto)).rejects.toThrow(BadRequestException);
+      await service.reject('batch-1', dto);
+
+      expect(mockPrisma.labResult.create).toHaveBeenCalledWith({
+        data: {
+          batchId: 'batch-1',
+          acidityLevel: 6,
+          waterContent: 1,
+          impurityLevel: 0.8,
+          grade: OilGrade.C,
+          notes: 'FFA too high',
+        },
+      });
+      expect(mockPrisma.batch.update).toHaveBeenCalledWith({
+        where: { id: 'batch-1' },
+        data: { status: BatchStatus.rejected },
+      });
     });
 
     it('should throw BadRequestException if already approved', async () => {

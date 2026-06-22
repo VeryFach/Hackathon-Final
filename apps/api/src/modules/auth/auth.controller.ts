@@ -9,6 +9,7 @@ import {
   UseGuards,
   Req,
   Get,
+  Request,
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBody, ApiResponse } from '@nestjs/swagger';
 import { AuthService } from './auth.service.js';
@@ -17,6 +18,7 @@ import { GoogleGuard } from './guard/google.guard.js';
 import { type Response } from 'express';
 import { ZodValidationPipe } from '../../lib/pipes/zod.pipe.js';
 import { RegisterSchema, LoginSchema } from '@repo/dto';
+import { Public } from './decorator/public.decorator.js';
 
 /** Opsi default untuk cookie autentikasi */
 const COOKIE_NAME = 'cookie_token';
@@ -38,6 +40,7 @@ export class AuthController {
    * Endpoint untuk mendaftarkan user baru menggunakan email dan password.
    */
   @Post('register')
+  @Public()
   @ApiOperation({ summary: 'Register a new user' })
   @ApiBody({ type: RegisterDto })
   @ApiResponse({ status: 201, description: 'User registered successfully' })
@@ -57,6 +60,7 @@ export class AuthController {
    */
   @HttpCode(HttpStatus.OK)
   @Post('login')
+  @Public()
   @ApiOperation({ summary: 'Sign in with email and password' })
   @ApiBody({ type: LoginDto })
   @ApiResponse({ status: 200, description: 'Login successful, returns JWT' })
@@ -89,10 +93,19 @@ export class AuthController {
     return { message: 'Logged out successfully' };
   }
 
+  @Get('me')
+  @ApiOperation({ summary: 'Get current authenticated user' })
+  @ApiResponse({ status: 200, description: 'Authenticated user returned' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  getMe(@Request() req: any) {
+    return this.authService.getMe(req.user.sub);
+  }
+
   /**
    * Endpoint untuk memulai proses login via akun Google (OAuth2).
    */
   @Get('google')
+  @Public()
   @UseGuards(GoogleGuard)
   @ApiOperation({ summary: 'Login with Google OAuth2' })
   googleAuth() {
@@ -104,6 +117,7 @@ export class AuthController {
    * Set cookie autentikasi, lalu redirect user kembali ke frontend.
    */
   @Get('google/callback')
+  @Public()
   @UseGuards(GoogleGuard)
   @ApiOperation({ summary: 'Google OAuth2 callback URL' })
   async googleAuthRedirect(@Req() req: any, @Res() res: Response) {
@@ -113,7 +127,7 @@ export class AuthController {
     // Set cookie sebelum redirect
     res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
 
-    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
     return res.redirect(`${frontendUrl}/auth/callback?token=${token}`);
   }
 }

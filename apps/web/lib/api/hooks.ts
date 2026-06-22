@@ -8,6 +8,7 @@ export function useSubmissions() {
   return useQuery({
     queryKey: ["submissions", "mine"],
     queryFn: () => submissionService.findMine(),
+    retry: false,
   });
 }
 
@@ -72,7 +73,7 @@ export function useLogout() {
   
   return useMutation({
     mutationFn: () => authService.logout(),
-    onSuccess: () => {
+    onSettled: () => {
       queryClient.clear();
     },
   });

@@ -1,4 +1,5 @@
 import { api } from "@/lib/axios";
+import { clearAuthSession, storeAuthSession } from "@/lib/auth-storage";
 
 // ==================== TYPES ====================
 
@@ -7,8 +8,8 @@ export interface User {
   fullName: string;
   email: string;
   role: "stakeholder" | "masyarakat" | "pengepul";
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthResponse {
@@ -43,15 +44,20 @@ export const authService = {
 
   login: async (data: LoginDto): Promise<AuthResponse> => {
     const response = await api.post("/auth/login", data);
+    storeAuthSession(response.data.access_token, response.data.user);
     return response.data;
   },
 
   logout: async (): Promise<void> => {
-    await api.post("/auth/logout");
+    try {
+      await api.post("/auth/logout");
+    } finally {
+      clearAuthSession();
+    }
   },
 
   getMe: async (): Promise<User> => {
-    const response = await api.get("/users/me");
+    const response = await api.get("/auth/me");
     return response.data;
   },
 

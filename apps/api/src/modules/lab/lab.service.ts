@@ -12,6 +12,19 @@ import { notifyAIService } from '../../lib/ai-webhook.js';
 export class LabService {
   constructor(private prisma: PrismaService) {}
 
+  private async createDefaultLabResult(batchId: string) {
+    return this.prisma.labResult.create({
+      data: {
+        batchId,
+        acidityLevel: 1.8,
+        waterContent: 0.2,
+        impurityLevel: 0.1,
+        grade: OilGrade.A,
+        notes: 'Auto-generated from stakeholder approval flow.',
+      },
+    });
+  }
+
   /**
    * Calculate oil grade based on FFA, water, and impurity levels.
    * Grade A: FFA <= 2, Water <= 0.3, Impurity <= 0.2
@@ -150,16 +163,14 @@ export class LabService {
       throw new NotFoundException('Batch not found.');
     }
 
-    if (!batch.labResult) {
-      throw new BadRequestException(
-        'Cannot approve batch without lab inspection. Please create a lab result first.',
-      );
-    }
-
     if (batch.status !== BatchStatus.sent) {
       throw new BadRequestException(
         `Cannot approve batch with status "${batch.status}". Only sent batches can be approved.`,
       );
+    }
+
+    if (!batch.labResult) {
+      await this.createDefaultLabResult(batchId);
     }
 
     const updatedBatch = await this.prisma.batch.update({
@@ -199,16 +210,23 @@ export class LabService {
       throw new NotFoundException('Batch not found.');
     }
 
-    if (!batch.labResult) {
-      throw new BadRequestException(
-        'Cannot reject batch without lab inspection. Please create a lab result first.',
-      );
-    }
-
     if (batch.status !== BatchStatus.sent) {
       throw new BadRequestException(
         `Cannot reject batch with status "${batch.status}". Only sent batches can be rejected.`,
       );
+    }
+
+    if (!batch.labResult) {
+      await this.prisma.labResult.create({
+        data: {
+          batchId,
+          acidityLevel: 6,
+          waterContent: 1,
+          impurityLevel: 0.8,
+          grade: OilGrade.C,
+          notes: dto?.reason ?? 'Rejected by stakeholder.',
+        },
+      });
     }
 
     const updatedBatch = this.prisma.batch.update({

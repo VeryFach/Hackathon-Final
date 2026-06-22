@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ForbiddenException } from '@nestjs/common';
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { AuthService } from './auth.service';
@@ -118,12 +118,25 @@ describe('AuthService', () => {
 
       // Assert – JWT was signed with the correct payload.
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
-        { sub: user.id, email: user.email, role: user.role },
+        {
+          sub: user.id,
+          email: user.email,
+          role: user.role,
+          fullName: user.fullName,
+        },
         expect.objectContaining({ secret: 'test-secret' }),
       );
 
       // Assert – the returned object contains the token.
-      expect(result).toEqual({ access_token: 'mock.jwt.token' });
+      expect(result).toEqual({
+        access_token: 'mock.jwt.token',
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          fullName: user.fullName,
+        },
+      });
     });
 
     it('should default fullName to "Anonymous User" when not provided', async () => {
@@ -196,26 +209,34 @@ describe('AuthService', () => {
         'strongP@ss1',
       );
 
-      expect(result).toEqual({ access_token: 'mock.jwt.token' });
+      expect(result).toEqual({
+        access_token: 'mock.jwt.token',
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          fullName: user.fullName,
+        },
+      });
     });
 
-    it('should throw ForbiddenException when user does not exist', async () => {
+    it('should throw UnauthorizedException when user does not exist', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(null);
 
       await expect(service.login(makeLoginDto())).rejects.toThrow(
-        ForbiddenException,
+        UnauthorizedException,
       );
       await expect(service.login(makeLoginDto())).rejects.toThrow(
         'Invalid credentials',
       );
     });
 
-    it('should throw ForbiddenException when password is incorrect', async () => {
+    it('should throw UnauthorizedException when password is incorrect', async () => {
       mockPrisma.user.findUnique.mockResolvedValue(makePrismaUser());
       argon2.verify.mockResolvedValue(false);
 
       await expect(service.login(makeLoginDto())).rejects.toThrow(
-        ForbiddenException,
+        UnauthorizedException,
       );
       await expect(service.login(makeLoginDto())).rejects.toThrow(
         'Invalid credentials',
@@ -256,7 +277,15 @@ describe('AuthService', () => {
       });
 
       expect(mockPrisma.user.create).toHaveBeenCalledTimes(1);
-      expect(result).toEqual({ access_token: 'mock.jwt.token' });
+      expect(result).toEqual({
+        access_token: 'mock.jwt.token',
+        user: {
+          id: newUser.id,
+          email: newUser.email,
+          role: newUser.role,
+          fullName: newUser.fullName,
+        },
+      });
     });
 
     it('should skip creation and return JWT if Google user already exists', async () => {
@@ -269,7 +298,15 @@ describe('AuthService', () => {
 
       // Should NOT attempt to create a duplicate user.
       expect(mockPrisma.user.create).not.toHaveBeenCalled();
-      expect(result).toEqual({ access_token: 'mock.jwt.token' });
+      expect(result).toEqual({
+        access_token: 'mock.jwt.token',
+        user: {
+          id: existingUser.id,
+          email: existingUser.email,
+          role: existingUser.role,
+          fullName: existingUser.fullName,
+        },
+      });
     });
   });
 
@@ -278,10 +315,23 @@ describe('AuthService', () => {
       const result = await service.signToken('uuid-1', 'bob@test.com', 'masyarakat' as any);
 
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'uuid-1', email: 'bob@test.com', role: 'masyarakat' },
+        {
+          sub: 'uuid-1',
+          email: 'bob@test.com',
+          role: 'masyarakat',
+          fullName: '',
+        },
         { expiresIn: '1h', secret: 'test-secret' },
       );
-      expect(result).toEqual({ access_token: 'mock.jwt.token' });
+      expect(result).toEqual({
+        access_token: 'mock.jwt.token',
+        user: {
+          id: 'uuid-1',
+          email: 'bob@test.com',
+          role: 'masyarakat',
+          fullName: '',
+        },
+      });
     });
 
     it('should default expiresIn to "1d" when JWT_EXPIRES_IN is not set', async () => {

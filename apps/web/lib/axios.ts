@@ -1,7 +1,17 @@
 import axios from "axios";
+import {
+  clearAuthSession,
+  getStoredAccessToken,
+} from "@/lib/auth-storage";
+
+const apiOrigin = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+const apiBaseUrl =
+  typeof window === "undefined"
+    ? `${apiOrigin.replace(/\/api\/?$/, "").replace(/\/$/, "")}/api`
+    : "/api";
 
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api",
+  baseURL: apiBaseUrl,
   headers: {
     "Content-Type": "application/json",
   },
@@ -28,6 +38,11 @@ const getCookie = (name: string) => {
 };
 
 api.interceptors.request.use((config) => {
+  const accessToken = getStoredAccessToken();
+  if (accessToken) {
+    config.headers.Authorization = `Bearer ${accessToken}`;
+  }
+
   const token = getCookie("XSRF-TOKEN");
   if (token) {
     config.headers["X-XSRF-TOKEN"] = token;
@@ -36,18 +51,20 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// api.interceptors.response.use(
-//   (response) => response,
-//   (error) => {
-//     const requestUrl = (error.config?.url || "").toString();
-//     const isAuthMe = requestUrl.includes("auth/me");
-//     const isLoginPage =
-//       typeof window !== "undefined" && window.location.pathname === "/login";
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      clearAuthSession();
 
-//     if (error.response?.status === 401 && !isAuthMe && !isLoginPage) {
-//       useAuthStore.getState().logout();
-//       window.location.href = "/login";
-//     }
-//     return Promise.reject(error);
-//   },
-// );
+      if (
+        typeof window !== "undefined" &&
+        window.location.pathname !== "/login"
+      ) {
+        window.location.href = "/login";
+      }
+    }
+
+    return Promise.reject(error);
+  },
+);

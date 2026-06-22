@@ -24,15 +24,12 @@ export interface CollectorDashboard {
   totalCollected: number;
   activeBatches: number;
   sentBatches: number;
-  yieldPerformance: {
-    avgYield: number;
-  };
-  revenueSummary: {
-    totalValue: number;
+  avgYieldRatio: number;
+  financial: {
+    totalRevenue: number;
     averagePricePerLiter: number;
+    pricedBatches: number;
   };
-  pendingRequests: number;
-  completedSubmissions: number;
 }
 
 export interface DepositorDashboard {

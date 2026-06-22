@@ -33,7 +33,7 @@ export class LabController {
   constructor(private readonly labService: LabService) {}
 
   @Post(':batchId')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Create lab inspection result for batch' })
   @ApiParam({ name: 'batchId', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiBody({
@@ -59,7 +59,7 @@ export class LabController {
   }
 
   @Get(':batchId')
-  @Roles('pengepul', 'stakeholder')
+  @Roles(UserRole.pengepul, UserRole.stakeholder)
   @ApiOperation({ summary: 'Get lab result for specific batch' })
   @ApiParam({ name: 'batchId', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 200, description: 'Lab result returned with batch info' })
@@ -73,7 +73,7 @@ export class LabController {
   }
 
   @Patch(':batchId/approve')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Approve batch after lab inspection' })
   @ApiParam({ name: 'batchId', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiResponse({ status: 200, description: 'Batch approved successfully' })
@@ -87,7 +87,7 @@ export class LabController {
   }
 
   @Patch(':batchId/reject')
-  @Roles('stakeholder')
+  @Roles(UserRole.stakeholder)
   @ApiOperation({ summary: 'Reject batch after lab inspection' })
   @ApiParam({ name: 'batchId', description: 'Batch ID', example: 'batch-uuid-here' })
   @ApiBody({
