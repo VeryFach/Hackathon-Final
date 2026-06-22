@@ -1,15 +1,18 @@
+# apps/ai-service/main.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from typing import List, Optional
+import numpy as np
 import pandas as pd
-from typing import List
-from .ai.data_generator import generate_depositors, generate_collectors, generate_batches
-from .ai.clustering import recommend_collector_locations, get_cluster_data
-from .ai.prediction import predict_funds
-from .models.schemas import AIResponse, LocationRecommendation, ClusterPoint, PredictionData
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler 
+import logging
+from collections import Counter
 
-app = FastAPI(title="AI Service for Hackathon SAF", version="1.0")
+app = FastAPI(title="SAF AI Service - Clustering", version="1.0")
 
-# CORS untuk diakses dari frontend
+# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,84 +21,108 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Data dummy global (akan di-generate sekali saat startup)
-depositors = None
-collectors = None
-batches = None
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-@app.on_event("startup")
-def load_data():
-    global depositors, collectors, batches
-    # Generate data dengan seed tetap
-    depositors = generate_depositors(n=120)
-    collectors = generate_collectors(n=8)
-    batches = generate_batches(depositors, collectors, months=6)
+# Request/Response models
+class Coordinate(BaseModel):
+    latitude: float
+    longitude: float
 
-@app.get("/health")
-def health():
-    return {"status": "ok"}
+class ClusterRequest(BaseModel):
+    coordinates: List[Coordinate]
+    n_clusters: Optional[int] = None
 
-@app.get("/ai/recommendations", response_model=AIResponse)
-def get_ai_recommendations():
-    """
-    Endpoint untuk mendapatkan rekomendasi lokasi pengepul (clustering)
-    dan prediksi dana berdasarkan data yang ada.
-    """
-    global depositors, collectors, batches
-    if depositors is None or batches is None:
-        raise HTTPException(status_code=500, detail="Data not initialized")
+class ClusterResponse(BaseModel):
+    labels: List[int]
+    centroids: List[List[float]]
+    cluster_counts: dict
+    recommended_centroids: List[List[float]]
+
+# ---------- Helper functions ----------
+def find_optimal_clusters(coords, max_k=10):
+    """Elbow method to suggest optimal k."""
+    n_points = len(coords)
+    if n_points == 0:
+        return 1
+    max_k = min(max_k, n_points)
+    inertias = []
+    for k in range(1, max_k + 1):
+        kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
+        kmeans.fit(coords)
+        inertias.append(kmeans.inertia_)
+    if len(inertias) > 2:
+        diffs = [inertias[i-1] - inertias[i] for i in range(1, len(inertias))]
+        if diffs:
+            threshold = diffs[0] * 0.05
+            for i, d in enumerate(diffs, start=1):
+                if d < threshold:
+                    return i
+    return min(3, n_points)
+
+def perform_clustering(coords, n_clusters):
+    """Clustering murni berdasarkan koordinat (tanpa volume)."""
+    if len(coords) == 0:
+        raise ValueError("No coordinates")
+    if n_clusters < 1:
+        n_clusters = 1
+    if n_clusters > len(coords):
+        n_clusters = len(coords)
     
-    # 1. Rekomendasi lokasi (clustering)
-    rec_df = recommend_collector_locations(depositors, n_clusters=3)
-    recommendations = [
-        LocationRecommendation(
-            latitude=row['latitude'],
-            longitude=row['longitude'],
-            cluster=int(row['cluster']),
-            score=float(row['score']),
-            nama=row['nama']
-        )
-        for _, row in rec_df.iterrows()
-    ]
+    # 🔥 Tanpa StandardScaler (karena lat/lon sudah dalam skala yang sama)
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+    labels = kmeans.fit_predict(coords)
+    centroids = kmeans.cluster_centers_.tolist()
+    return labels.tolist(), centroids
+
+# ---------- Endpoints ----------
+@app.post("/cluster", response_model=ClusterResponse)
+async def cluster_endpoint(request: ClusterRequest):
+    if not request.coordinates:
+        raise HTTPException(status_code=400, detail="No coordinates provided")
     
-    # 2. Data clustering untuk visualisasi
-    cluster_data = get_cluster_data(depositors, n_clusters=3)
-    clusters = [
-        ClusterPoint(
-            depositor_id=row['depositor_id'],
-            latitude=float(row['latitude']),
-            longitude=float(row['longitude']),
-            volume=int(row['volume']),
-            cluster=int(row['cluster'])
-        )
-        for _, row in cluster_data.iterrows()
-    ]
+    coords = np.array([[c.latitude, c.longitude] for c in request.coordinates])
+    n_clusters = request.n_clusters
+    if n_clusters is None:
+        n_clusters = find_optimal_clusters(coords)
+        logger.info(f"Auto-selected n_clusters = {n_clusters}")
     
-    # 3. Prediksi dana
-    pred_data, pred_value = predict_funds(batches, months_ahead=1)
-    prediction = [
-        PredictionData(
-            bulan=item['bulan'],
-            total_value=float(item['total_value']),
-            type=item['type']
-        )
-        for item in pred_data
-    ]
+    labels, centroids = perform_clustering(coords, n_clusters)
+    counts = dict(Counter(labels))
     
-    return AIResponse(
-        recommendations=recommendations,
-        clusters=clusters,
-        prediction=prediction,
-        prediction_next_value=float(pred_value)
+    return ClusterResponse(
+        labels=labels,
+        centroids=centroids,
+        cluster_counts=counts,
+        recommended_centroids=centroids
     )
 
-@app.get("/ai/refresh")
-def refresh_data():
-    """
-    Generate ulang data dummy (untuk testing).
-    """
-    global depositors, collectors, batches
-    depositors = generate_depositors(n=120)
-    collectors = generate_collectors(n=8)
-    batches = generate_batches(depositors, collectors, months=6)
-    return {"status": "data regenerated"}
+@app.get("/cluster-from-csv")
+async def cluster_from_csv(n_clusters: Optional[int] = None):
+    """Read depositors from CSV and cluster them (lokasi only)."""
+    try:
+        df = pd.read_csv('data/depositors.csv')
+        # 🔥 Hanya pakai latitude dan longitude
+        coords = df[['latitude', 'longitude']].values.tolist()
+        request = ClusterRequest(
+            coordinates=[Coordinate(latitude=c[0], longitude=c[1]) for c in coords],
+            n_clusters=n_clusters
+        )
+        return await cluster_endpoint(request)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="data/depositors.csv not found. Run data_generator.py first.")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/depositors")
+async def get_depositors():
+    """Get depositor coordinates from CSV."""
+    try:
+        df = pd.read_csv('data/depositors.csv')
+        return df[['latitude', 'longitude']].to_dict('records')
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail="data/depositors.csv not found")
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
