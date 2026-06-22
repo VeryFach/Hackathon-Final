@@ -15,6 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { pricingService } from "@/lib/api";
+import type { Pricing } from "@/lib/api";
 
 // --- Tipe Data ---
 type PricingConfig = {
@@ -27,15 +29,79 @@ type PricingConfig = {
   updatedBy?: string;
 };
 
-// --- API Functions (mock) ---
-const fetchPricingConfig = async (): Promise<PricingConfig> => {
-  await new Promise((resolve) => setTimeout(resolve, 600));
-  return { base: 6200, mA: 1.1, mB: 1.0, mC: 0.85, bonus: 200, updatedAt: "2025-01-15 10:30", updatedBy: "Admin" };
+const DEFAULT_PRICING: PricingConfig = {
+  base: 6200,
+  mA: 1.1,
+  mB: 1.0,
+  mC: 0.85,
+  bonus: 200,
 };
 
-const updatePricingConfig = async (data: PricingConfig) => {
-  await new Promise((resolve) => setTimeout(resolve, 800));
-  return { success: true };
+const toPricingConfig = (pricing?: Pricing): PricingConfig => {
+  if (!pricing) {
+    return DEFAULT_PRICING;
+  }
+
+  const ruleA = pricing.gradeRules?.find((rule) => rule.grade === "A");
+  const ruleB = pricing.gradeRules?.find((rule) => rule.grade === "B");
+  const ruleC = pricing.gradeRules?.find((rule) => rule.grade === "C");
+  const base = ruleA?.basePrice || ruleB?.basePrice || ruleC?.basePrice || DEFAULT_PRICING.base;
+  const bonusRule = pricing.volumeRules
+    ?.filter((rule) => rule.maxVolume === null)
+    .sort((a, b) => b.minVolume - a.minVolume)[0];
+
+  return {
+    base,
+    mA: ruleA?.qualityFactor ?? DEFAULT_PRICING.mA,
+    mB: ruleB?.qualityFactor ?? DEFAULT_PRICING.mB,
+    mC: ruleC?.qualityFactor ?? DEFAULT_PRICING.mC,
+    bonus: Math.round(base * (bonusRule?.bonusFactor ?? DEFAULT_PRICING.bonus / base)),
+    updatedAt: new Intl.DateTimeFormat("id-ID", {
+      dateStyle: "medium",
+      timeStyle: "short",
+    }).format(new Date(pricing.createdAt)),
+    updatedBy: pricing.creator?.fullName,
+  };
+};
+
+// --- API Functions ---
+const fetchPricingConfig = async (): Promise<PricingConfig> => {
+  const configs = await pricingService.getAll();
+  const active = configs.find((item) => item.active) ?? configs[0];
+  return toPricingConfig(active);
+};
+
+const updatePricingConfig = async (data: PricingConfig): Promise<PricingConfig> => {
+  const pricing = await pricingService.create();
+  await Promise.all([
+    pricingService.addGradeRule(pricing.id, {
+      grade: "A",
+      multiplier: data.mA,
+      basePrice: data.base,
+    }),
+    pricingService.addGradeRule(pricing.id, {
+      grade: "B",
+      multiplier: data.mB,
+      basePrice: data.base,
+    }),
+    pricingService.addGradeRule(pricing.id, {
+      grade: "C",
+      multiplier: data.mC,
+      basePrice: data.base,
+    }),
+    pricingService.addVolumeRule(pricing.id, {
+      minVolume: 0,
+      maxVolume: 50,
+      percentage: 0,
+    }),
+    pricingService.addVolumeRule(pricing.id, {
+      minVolume: 50.0001,
+      maxVolume: null,
+      percentage: data.base > 0 ? data.bonus / data.base : 0,
+    }),
+  ]);
+  await pricingService.activate(pricing.id);
+  return toPricingConfig(await pricingService.getById(pricing.id));
 };
 
 // --- Validasi ---

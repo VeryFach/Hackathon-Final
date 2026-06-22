@@ -16,6 +16,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Loader2, MapPin, Calendar, FlaskConical, DollarSign } from "lucide-react";
+import { batchService, pricingService } from "@/lib/api";
+import type { Batch, Pricing } from "@/lib/api";
 
 const Map = dynamic(() => import("@/components/Map"), { ssr: false });
 
@@ -39,6 +41,39 @@ type PricingConfig = {
   mB: number;
   mC: number;
   bonus: number;
+};
+
+const toBatchLab = (batch: Batch): BatchLab => ({
+  id: batch.id,
+  pengepul: batch.collector?.user.fullName ?? "Pengepul",
+  totalLiter: batch.totalLiter || batch.totalCleanOilLiter || batch.totalRawOilLiter,
+  grade: batch.labResult?.grade,
+  ffa: batch.labResult?.acidityLevel,
+  moisture: batch.labResult?.waterContent,
+  impurity: batch.labResult?.impurityLevel,
+  status: batch.status === "sent" ? "pending" : batch.status,
+});
+
+const toPricingConfig = (pricing?: Pricing): PricingConfig | null => {
+  if (!pricing) {
+    return null;
+  }
+
+  const ruleA = pricing.gradeRules?.find((rule) => rule.grade === "A");
+  const ruleB = pricing.gradeRules?.find((rule) => rule.grade === "B");
+  const ruleC = pricing.gradeRules?.find((rule) => rule.grade === "C");
+  const base = ruleA?.basePrice || ruleB?.basePrice || ruleC?.basePrice || 0;
+  const bonusRule = pricing.volumeRules
+    ?.filter((rule) => rule.maxVolume === null)
+    .sort((a, b) => b.minVolume - a.minVolume)[0];
+
+  return {
+    base,
+    mA: ruleA?.qualityFactor ?? 0,
+    mB: ruleB?.qualityFactor ?? 0,
+    mC: ruleC?.qualityFactor ?? 0,
+    bonus: Math.round(base * (bonusRule?.bonusFactor ?? 0)),
+  };
 };
 
 export default function StakeholderPage() {
@@ -69,39 +104,29 @@ export default function StakeholderPage() {
       const realisasiItems = predictionData.filter(
         (item: any) => item.type === "realisasi"
       );
-      const transData = realisasiItems.map((item: any) => ({
+      const transData: { date: string; value: number }[] = realisasiItems.map((item: any) => ({
         date: item.bulan,
         value: item.total_value,
       }));
       transData.sort((a, b) => b.date.localeCompare(a.date));
       setTransactions(transData);
 
-      // 4. Lab batches (ambil dari endpoint /stakeholder/lab atau fallback dari mock)
-      let labData: BatchLab[] = [];
+      // 4. Lab batches dari Nest backend
       try {
-        const labRes = await axios.get(`${API_URL}/stakeholder/lab`);
-        labData = labRes.data || [];
+        const batches = await batchService.findAllForStakeholder();
+        setLabBatches(batches.map(toBatchLab));
       } catch {
-        // Fallback mock data
-        labData = [
-          { id: "BATCH-001", pengepul: "Pengepul A", totalLiter: 120, grade: "A", ffa: 1.2, moisture: 0.08, impurity: 0.3, status: "pending" },
-          { id: "BATCH-002", pengepul: "Pengepul B", totalLiter: 85, grade: "B", ffa: 2.8, moisture: 0.15, impurity: 0.7, status: "pending" },
-          { id: "BATCH-003", pengepul: "Pengepul C", totalLiter: 200, grade: "A", ffa: 0.9, moisture: 0.06, impurity: 0.2, status: "approved" },
-          { id: "BATCH-004", pengepul: "Pengepul D", totalLiter: 60, grade: "C", ffa: 4.2, moisture: 0.25, impurity: 1.2, status: "pending" },
-        ];
+        setLabBatches([]);
       }
-      setLabBatches(labData);
 
-      // 5. Pricing config
-      let pricingData: PricingConfig | null = null;
+      // 5. Pricing config dari Nest backend
       try {
-        const priceRes = await axios.get(`${API_URL}/stakeholder/pricing-config`);
-        pricingData = priceRes.data;
+        const pricingConfigs = await pricingService.getAll();
+        const activePricing = pricingConfigs.find((item) => item.active) ?? pricingConfigs[0];
+        setPricing(toPricingConfig(activePricing));
       } catch {
-        // Fallback
-        pricingData = { base: 6200, mA: 1.1, mB: 1.0, mC: 0.85, bonus: 200 };
+        setPricing(null);
       }
-      setPricing(pricingData);
 
     } catch (err: any) {
       setError(err.message || "Terjadi kesalahan saat memuat data.");
