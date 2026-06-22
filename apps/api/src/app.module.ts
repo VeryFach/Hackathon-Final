@@ -8,6 +8,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { ProfilesModule } from './modules/profile/profiles.module.js';
 import { SubmissionsModule } from './modules/submissions/submissions.module.js';
 import { BatchesModule } from './modules/batches/batches.module.js';
+import { LabModule } from './modules/lab/lab.module.js';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { BatchesModule } from './modules/batches/batches.module.js';
     ProfilesModule,
     SubmissionsModule,
     BatchesModule,
+    LabModule,
   ],
   controllers: [AppController],
   providers: [AppService],
