@@ -8,14 +8,19 @@ RUN corepack enable
 FROM base AS builder
 WORKDIR /app
 
-# Salin seluruh monorepo
+# 1. Copy HANYA file terkait dependencies
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
+# Jika pakai monorepo, copy package.json dari tiap aplikasi/packages
+COPY apps/web/package.json ./apps/web/
+COPY apps/api/package.json ./apps/api/
+
+# 2. Install dependencies (layer ini akan di-cache Docker selama tidak ada penambahan package baru)
+RUN pnpm install --frozen-lockfile
+
+# 3. Baru salin seluruh sisa source code
 COPY . .
 
-# INSTALL SEMUA DEPENDENSI (Termasuk devDependencies)
-# Jangan set NODE_ENV=production di sini!
-RUN pnpm install
-
-# Build aplikasinya
+# 4. Build aplikasinya
 RUN pnpm --filter web build
 
 # 3. Tahap Runner (Menjalankan Aplikasi)

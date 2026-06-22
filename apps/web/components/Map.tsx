@@ -17,11 +17,29 @@ if (typeof window !== "undefined") {
 
 interface MapProps {
   points?: Array<{ latitude: number; longitude: number; cluster?: number }>;
-  clusters?: any; // { centroids, cluster_counts, labels, ... }
-  collectors?: Array<{ latitude: number; longitude: number; nama: string; id?: string }>;
+  clusters?: any;
+  collectors?: Array<{ 
+    latitude: number; 
+    longitude: number; 
+    nama: string; 
+    id?: string; 
+    pricePerLiter?: number; // ✨ tambahan
+  }>;
   showDepositors?: boolean;
   showCollectors?: boolean;
   showRecommendations?: boolean;
+  userLocation?: { lat: number; lng: number } | null;
+  showRadius?: boolean;
+  radius?: number;
+}
+
+// Helper format rupiah
+function formatRp(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    minimumFractionDigits: 0,
+  }).format(value);
 }
 
 export default function Map({
@@ -31,11 +49,14 @@ export default function Map({
   showDepositors = true,
   showCollectors = true,
   showRecommendations = true,
+  userLocation = null,
+  showRadius = false,
+  radius = 1,
 }: MapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<any>(null);
 
-  // Buat icon untuk penyetor (merah)
+  // Icons (sama seperti sebelumnya)
   const depositorIcon = useMemo(() => {
     if (!L) return null;
     return L.divIcon({
@@ -46,7 +67,6 @@ export default function Map({
     });
   }, []);
 
-  // Icon untuk pengepul (biru)
   const collectorIcon = useMemo(() => {
     if (!L) return null;
     return L.divIcon({
@@ -57,7 +77,6 @@ export default function Map({
     });
   }, []);
 
-  // Icon untuk rekomendasi (merah besar)
   const recommendationIcon = useMemo(() => {
     if (!L) return null;
     return L.divIcon({
@@ -65,6 +84,16 @@ export default function Map({
       html: `<div style="background-color:#dc2626;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 0 0 1px #dc2626;"></div>`,
       iconSize: [12, 12],
       iconAnchor: [6, 6],
+    });
+  }, []);
+
+  const userIcon = useMemo(() => {
+    if (!L) return null;
+    return L.divIcon({
+      className: "user-marker",
+      html: `<div style="background-color:#1d4ed8;width:16px;height:16px;border-radius:50%;border:3px solid white;box-shadow:0 0 0 2px #1d4ed8;"></div>`,
+      iconSize: [16, 16],
+      iconAnchor: [8, 8],
     });
   }, []);
 
@@ -79,15 +108,15 @@ export default function Map({
 
     const map = mapInstanceRef.current;
 
-    // Clear old markers (keep tile layer)
+    // Clear old markers & circles
     map.eachLayer((layer: any) => {
-      if (layer instanceof L.Marker) {
+      if (layer instanceof L.Marker || layer instanceof L.Circle) {
         map.removeLayer(layer);
       }
     });
 
-    // 1. Tampilkan penyetor jika diizinkan
-    if (showDepositors && Array.isArray(points) && points.length > 0 && depositorIcon) {
+    // 1. Penyetor
+    if (showDepositors && points.length > 0 && depositorIcon) {
       points.forEach((point) => {
         if (point && typeof point.latitude === "number" && typeof point.longitude === "number") {
           L.marker([point.latitude, point.longitude], { icon: depositorIcon }).addTo(map);
@@ -95,23 +124,26 @@ export default function Map({
       });
     }
 
-    // 2. Tampilkan pengepul jika diizinkan
-    if (showCollectors && Array.isArray(collectors) && collectors.length > 0 && collectorIcon) {
+    // 2. Pengepul (dengan popup yang menampilkan harga)
+    if (showCollectors && collectors.length > 0 && collectorIcon) {
       collectors.forEach((collector) => {
         if (collector && typeof collector.latitude === "number" && typeof collector.longitude === "number") {
           const marker = L.marker([collector.latitude, collector.longitude], {
             icon: collectorIcon,
           });
-          if (collector.nama) {
-            marker.bindPopup(`<b>${collector.nama}</b><br>ID: ${collector.id || "-"}`);
+
+          let popupContent = `<b>${collector.nama || "Pengepul"}</b><br>ID: ${collector.id || "-"}`;
+          if (collector.pricePerLiter) {
+            popupContent += `<br>Harga: ${formatRp(collector.pricePerLiter)}/L`;
           }
+          marker.bindPopup(popupContent);
           marker.addTo(map);
         }
       });
     }
 
-    // 3. Tampilkan rekomendasi (centroid) jika diizinkan
-    if (showRecommendations && clusters && clusters.centroids && Array.isArray(clusters.centroids) && recommendationIcon) {
+    // 3. Rekomendasi
+    if (showRecommendations && clusters && clusters.centroids && recommendationIcon) {
       clusters.centroids.forEach((centroid: number[], idx: number) => {
         if (Array.isArray(centroid) && centroid.length === 2) {
           const popupContent = `
@@ -127,7 +159,24 @@ export default function Map({
       });
     }
 
-    // Fit bounds to show all markers
+    // 4. Lokasi pengguna & radius
+    if (userLocation && userIcon) {
+      const { lat, lng } = userLocation;
+      L.marker([lat, lng], { icon: userIcon })
+        .bindPopup("<b>📍 Lokasi Anda</b>")
+        .addTo(map);
+      if (showRadius) {
+        L.circle([lat, lng], {
+          radius: radius * 1000,
+          color: "#2563eb",
+          fillColor: "#3b82f6",
+          fillOpacity: 0.15,
+          weight: 1,
+        }).addTo(map);
+      }
+    }
+
+    // Fit bounds
     const allPoints: Array<[number, number]> = [];
     if (showDepositors) {
       points.forEach((p) => allPoints.push([p.latitude, p.longitude]));
@@ -146,6 +195,9 @@ export default function Map({
         }
       });
     }
+    if (userLocation) {
+      allPoints.push([userLocation.lat, userLocation.lng]);
+    }
     if (allPoints.length > 0) {
       try {
         const bounds = L.latLngBounds(allPoints);
@@ -156,7 +208,7 @@ export default function Map({
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, clusters, collectors, showDepositors, showCollectors, showRecommendations]);
+  }, [points, clusters, collectors, showDepositors, showCollectors, showRecommendations, userLocation, showRadius, radius]);
 
-  return <div ref={mapRef} style={{ width: "100%", height: "600px", borderRadius: "8px", position: "relative", zIndex: 0,}} />;
+  return <div ref={mapRef} style={{ width: "100%", height: "600px", borderRadius: "8px", position: "relative", zIndex: 0 }} />;
 }
