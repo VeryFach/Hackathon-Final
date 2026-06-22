@@ -64,7 +64,7 @@ export default function StakeholderPage() {
       setCollectors(colRes.data || []);
 
       // 3. Realisasi dari /analyze
-      const analyzeRes = await axios.get(`${API_URL}/analyze`);
+      const analyzeRes = await axios.get(`${API_URL}/analyze?refresh=true`);
       const predictionData = analyzeRes.data.prediction || [];
       const realisasiItems = predictionData.filter(
         (item: any) => item.type === "realisasi"

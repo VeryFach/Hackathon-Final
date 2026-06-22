@@ -55,7 +55,7 @@ def get_cluster_points(depositors_df, labels):
     points = []
     for idx, row in depositors_df.iterrows():
         points.append({
-            'depositor_id': row['id'],
+            'depositorId': row['id'],
             'latitude': float(row['latitude']),
             'longitude': float(row['longitude']),
             'volume': 0,

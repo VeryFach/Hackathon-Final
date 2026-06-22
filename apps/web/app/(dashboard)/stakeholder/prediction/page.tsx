@@ -124,7 +124,7 @@ export default function PrediksiDanaPage() {
     setLoading(true);
     setError(null);
     try {
-      const response = await axios.get(`${API_URL}/analyze`);
+      const response = await axios.get(`${API_URL}/predict-fund`);
       const predictionData: PredictionItem[] = response.data.prediction || [];
       setServerData(predictionData);
       const allData = [...predictionData, ...localData];

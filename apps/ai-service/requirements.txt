@@ -1,7 +1,15 @@
+# API
 fastapi
-uvicorn
-scikit-learn
-pandas
-numpy
-prophet
+uvicorn[standard]
 python-multipart
+
+# DB
+sqlalchemy
+psycopg2-binary
+python-dotenv
+
+# ML
+numpy
+pandas
+scikit-learn
+prophet

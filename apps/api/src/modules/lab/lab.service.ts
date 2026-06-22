@@ -6,10 +6,11 @@ import {
 import { PrismaService } from '../prisma/prisma.service.js';
 import { BatchStatus, OilGrade, UserRole } from '@prisma/client';
 import type { ICreateLabResultDto, IRejectLabDto } from '@repo/dto';
+import { notifyAIService } from '../../lib/ai-webhook.js';
 
 @Injectable()
 export class LabService {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   /**
    * Calculate oil grade based on FFA, water, and impurity levels.
@@ -27,11 +28,7 @@ export class LabService {
     const MAX_WATER = 1;
     const MAX_IMPURITY = 0.8;
 
-    if (
-      ffa > MAX_FFA ||
-      water > MAX_WATER ||
-      impurity > MAX_IMPURITY
-    ) {
+    if (ffa > MAX_FFA || water > MAX_WATER || impurity > MAX_IMPURITY) {
       return null;
     }
 
@@ -40,9 +37,7 @@ export class LabService {
     const normalizedImpurity = impurity / MAX_IMPURITY;
 
     const score =
-      normalizedFfa * 0.5 +
-      normalizedWater * 0.3 +
-      normalizedImpurity * 0.2;
+      normalizedFfa * 0.5 + normalizedWater * 0.3 + normalizedImpurity * 0.2;
 
     if (score <= 0.3) {
       return OilGrade.A;
@@ -167,13 +162,17 @@ export class LabService {
       );
     }
 
-    return this.prisma.batch.update({
+    const updatedBatch = await this.prisma.batch.update({
       where: { id: batchId },
       data: {
         status: BatchStatus.approved,
         ...(validatorUserId && { validatedBy: validatorUserId }),
       },
     });
+
+    await notifyAIService('batch.approved', batch.id);
+
+    return updatedBatch;
   }
 
   async reject(
@@ -182,9 +181,13 @@ export class LabService {
     maybeDto?: IRejectLabDto,
   ) {
     const validatorUserId =
-      typeof validatorUserIdOrDto === 'string' ? validatorUserIdOrDto : undefined;
+      typeof validatorUserIdOrDto === 'string'
+        ? validatorUserIdOrDto
+        : undefined;
     const dto =
-      typeof validatorUserIdOrDto === 'string' ? maybeDto : validatorUserIdOrDto;
+      typeof validatorUserIdOrDto === 'string'
+        ? maybeDto
+        : validatorUserIdOrDto;
     void dto;
 
     const batch = await this.prisma.batch.findUnique({
@@ -208,12 +211,14 @@ export class LabService {
       );
     }
 
-    return this.prisma.batch.update({
+    const updatedBatch = this.prisma.batch.update({
       where: { id: batchId },
       data: {
         status: BatchStatus.rejected,
         ...(validatorUserId && { validatedBy: validatorUserId }),
       },
     });
+    
+    return updatedBatch;
   }
 }
