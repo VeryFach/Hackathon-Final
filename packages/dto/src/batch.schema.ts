@@ -10,7 +10,13 @@ export const AddBatchItemsSchema = z.object({
 
 export const ProcessBatchSchema = z.object({
   rawOil: z.number().positive('Raw oil must be greater than 0'),
+
   residue: z.number().min(0, 'Residue must be non-negative'),
+
+  processLoss: z
+    .number()
+    .min(0, 'Process loss must be non-negative')
+    .optional(),
 });
 
 export type ICreateBatchDto = z.infer<typeof CreateBatchSchema>;

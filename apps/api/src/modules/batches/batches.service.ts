@@ -151,9 +151,19 @@ export class BatchesService {
       throw new BadRequestException('Residue cannot be greater than raw oil.');
     }
 
-    const clean = dto.rawOil - dto.residue;
-    const yieldRatio = clean / dto.rawOil;
-    const sedimentRatio = dto.residue / dto.rawOil;
+    const processLoss = dto.processLoss ?? 0;
+    const clean = dto.rawOil - dto.residue - processLoss;
+
+    const yieldRatio =
+      dto.rawOil > 0 ? clean / dto.rawOil : 0;
+
+    const sedimentRatio =
+      dto.rawOil > 0 ? dto.residue / dto.rawOil : 0;
+
+    const recoveryEfficiency =
+      dto.rawOil > 0
+        ? (clean + dto.residue) / dto.rawOil
+        : 0;
 
     return this.prisma.batch.update({
       where: { id: batchId },

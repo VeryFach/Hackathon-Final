@@ -9,7 +9,7 @@ import type { ICreateLabResultDto, IRejectLabDto } from '@repo/dto';
 
 @Injectable()
 export class LabService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   /**
    * Calculate oil grade based on FFA, water, and impurity levels.
@@ -18,17 +18,41 @@ export class LabService {
    * Grade C: FFA <= 6, Water <= 1,   Impurity <= 0.8
    * Returns null if values exceed all grade thresholds.
    */
-  calculateGrade(ffa: number, water: number, impurity: number): OilGrade | null {
-    if (ffa <= 2 && water <= 0.3 && impurity <= 0.2) {
+  calculateGrade(
+    ffa: number,
+    water: number,
+    impurity: number,
+  ): OilGrade | null {
+    const MAX_FFA = 6;
+    const MAX_WATER = 1;
+    const MAX_IMPURITY = 0.8;
+
+    if (
+      ffa > MAX_FFA ||
+      water > MAX_WATER ||
+      impurity > MAX_IMPURITY
+    ) {
+      return null;
+    }
+
+    const normalizedFfa = ffa / MAX_FFA;
+    const normalizedWater = water / MAX_WATER;
+    const normalizedImpurity = impurity / MAX_IMPURITY;
+
+    const score =
+      normalizedFfa * 0.5 +
+      normalizedWater * 0.3 +
+      normalizedImpurity * 0.2;
+
+    if (score <= 0.3) {
       return OilGrade.A;
     }
-    if (ffa <= 4 && water <= 0.5 && impurity <= 0.4) {
+
+    if (score <= 0.6) {
       return OilGrade.B;
     }
-    if (ffa <= 6 && water <= 1 && impurity <= 0.8) {
-      return OilGrade.C;
-    }
-    return null;
+
+    return OilGrade.C;
   }
 
   async create(batchId: string, dto: ICreateLabResultDto) {
