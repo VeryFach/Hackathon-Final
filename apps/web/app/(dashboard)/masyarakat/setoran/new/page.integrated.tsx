@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Camera, MapPin, Droplets, ArrowLeft } from "lucide-react";
+import { Camera, MapPin, Droplets, ArrowLeft, Loader2 } from "lucide-react";
 import { AppShell, formatRp } from "@/components/app-shell";
 import { submissionService } from "@/lib/api";
 import type { CreateSubmissionDto } from "@/lib/api";
@@ -24,10 +24,11 @@ export default function NewSetoran() {
     setError("");
 
     try {
+      // Call backend API
       const data: CreateSubmissionDto = {
         estimatedLiter: volume,
-        latitude: "-6.2088", // Default Jakarta, bisa diganti dengan geolocation
-        longitude: "106.8456",
+        latitude: "-6.2088", // TODO: Get from geolocation
+        longitude: "106.8456", // TODO: Get from geolocation
         address: lokasi,
         notes: catatan,
       };
@@ -35,10 +36,13 @@ export default function NewSetoran() {
       await submissionService.create(data);
       
       // Redirect to submissions list
-      router.push("/masyarakat/setoran");
+      router.push("/dashboard/masyarakat/setoran");
       router.refresh();
     } catch (err: any) {
-      setError(err.response?.data?.message || "Gagal membuat setoran.");
+      setError(
+        err.response?.data?.message || 
+        "Gagal membuat setoran. Silakan coba lagi."
+      );
     } finally {
       setLoading(false);
     }
@@ -50,7 +54,7 @@ export default function NewSetoran() {
       subtitle="Isi detail minyak jelantah yang ingin kamu setor."
     >
       <Link 
-        href="/" 
+        href="/dashboard/masyarakat/setoran" 
         className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground mb-4"
       >
         <ArrowLeft className="size-3" /> Kembali
@@ -62,6 +66,12 @@ export default function NewSetoran() {
           style={{ boxShadow: "var(--shadow-soft)" }}
           onSubmit={handleSubmit}
         >
+          {error && (
+            <div className="p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
           <div>
             <label className="text-sm font-medium">Estimasi Volume</label>
             <div className="mt-2 flex items-center gap-4">
@@ -86,6 +96,7 @@ export default function NewSetoran() {
               value={lokasi}
               onChange={(e) => setLokasi(e.target.value)}
               placeholder="cth. Jl. Kemang Raya 12"
+              required
               className="mt-2 w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
             />
           </div>
@@ -109,19 +120,20 @@ export default function NewSetoran() {
             />
           </div>
 
-          {error && (
-            <div className="text-sm text-red-500 bg-red-50 p-3 rounded-lg">
-              {error}
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 rounded-lg text-sm font-medium text-primary-foreground disabled:opacity-50"
+            className="w-full py-3 rounded-lg text-sm font-medium text-primary-foreground disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             style={{ background: "var(--gradient-warm)" }}
           >
-            {loading ? "Memproses..." : "Kirim Permintaan Setoran"}
+            {loading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Mengirim...
+              </>
+            ) : (
+              "Kirim Permintaan Setoran"
+            )}
           </button>
         </form>
 
@@ -140,8 +152,8 @@ export default function NewSetoran() {
                 <span>{volume} L</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Pengepul</span>
-                <span>Akan diassign otomatis</span>
+                <span className="text-muted-foreground">Lokasi</span>
+                <span className="text-right max-w-[120px] truncate">{lokasi || "-"}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Grade estimasi</span>

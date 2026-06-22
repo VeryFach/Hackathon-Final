@@ -1,4 +1,5 @@
 "use client";
+import { useState, useEffect } from "react";
 import {
   Droplets,
   Wallet,
@@ -9,30 +10,69 @@ import {
   Circle,
 } from "lucide-react";
 import { AppShell, StatCard, StatusBadge, formatRp } from "@/components/app-shell";
-import { setoranList, type SetoranStatus } from "@/lib/mock-data";
+import { submissionService } from "@/lib/api";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-const STEPS: SetoranStatus[] = [
-  "diajukan",
-  "dijemput",
-  "diterima",
-  "diproses",
-  "selesai",
-];
+type SetoranStatus = "pending" | "accepted" | "pickedUp" | "processed" | "completed";
 
-const STEP_LABEL: Record<SetoranStatus, string> = {
-  diajukan: "Diajukan",
-  dijemput: "Dijemput",
-  diterima: "Diterima",
-  diproses: "Diproses",
-  selesai: "Selesai",
+const STEP_LABEL: Record<string, string> = {
+  pending: "Diajukan",
+  accepted: "Diterima",
+  pickedUp: "Dijemput",
+  processed: "Diproses",
+  completed: "Selesai",
 };
 
 export default function Page() {
-  if (!setoranList.length) {
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetchSubmissions();
+  }, []);
+
+  const fetchSubmissions = async () => {
+    try {
+      const data = await submissionService.findMine();
+      setSubmissions(data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Gagal memuat data setoran");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
     return (
-      <AppShell title="Dashboard" subtitle="Belum ada data setoran.">
+      <AppShell title="Dashboard" subtitle="Memuat data...">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </AppShell>
+    );
+  }
+
+  if (error) {
+    return (
+      <AppShell title="Dashboard" subtitle="Error">
+        <div className="text-sm text-red-500">{error}</div>
+      </AppShell>
+    );
+  }
+
+  if (!submissions.length) {
+    return (
+      <AppShell title="Dashboard" subtitle="Belum ada data setoran."
+        actions={
+          <Link
+            href="/masyarakat/setoran/new"
+            className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium text-primary-foreground"
+            style={{ background: "var(--gradient-warm)" }}
+          >
+            <Plus className="size-4" /> Ajukan Setoran
+          </Link>
+        }
+      >
         <div className="text-sm text-muted-foreground">
           Kamu belum punya aktivitas setoran.
         </div>
@@ -40,15 +80,14 @@ export default function Page() {
     );
   }
 
-  const totalLiter = setoranList.reduce(
-    (s, x) => s + (x.volumeAktual ?? x.volumeEstimasi),
+  const totalLiter = submissions.reduce(
+    (s, x) => s + (x.actualLiter || x.estimatedLiter),
     0
   );
 
-  const totalRp = setoranList.reduce((s, x) => s + (x.total ?? 0), 0);
+  const totalRp = submissions.reduce((s, x) => s + (x.payoutAmount || 0), 0);
 
-  const last = setoranList[setoranList.length - 1]!;
-  const currentIdx = STEPS.indexOf(last.status);
+  const last = submissions[submissions.length - 1]!;
 
   return (
     <AppShell
@@ -81,7 +120,7 @@ export default function Page() {
         />
         <StatCard
           label="Setoran Aktif"
-          value={String(setoranList.filter((s) => s.status !== "selesai").length)}
+          value={String(submissions.filter((s) => s.status !== "completed").length)}
           hint="Dalam proses"
           icon={Truck}
         />
@@ -101,73 +140,22 @@ export default function Page() {
             <StatusBadge status={last.status} />
           </div>
 
-          <div className="mt-8 relative">
-            <div className="absolute top-3 left-0 right-0 h-0.5 bg-border" />
-
-            <div
-              className="absolute top-3 left-0 h-0.5 transition-all"
-              style={{
-                width: `${(currentIdx / (STEPS.length - 1)) * 100}%`,
-                background: "var(--gradient-warm)",
-              }}
-            />
-
-            <div className="relative grid grid-cols-5">
-              {STEPS.map((s, i) => {
-                const done = i <= currentIdx;
-
-                return (
-                  <div key={s} className="flex flex-col items-center">
-                    <div
-                      className={`size-6 rounded-full grid place-items-center ${
-                        done
-                          ? "text-white"
-                          : "bg-card border text-muted-foreground"
-                      }`}
-                      style={
-                        done
-                          ? { background: "var(--gradient-warm)" }
-                          : undefined
-                      }
-                    >
-                      {done ? (
-                        <CheckCircle2 className="size-4" />
-                      ) : (
-                        <Circle className="size-3" />
-                      )}
-                    </div>
-
-                    <div
-                      className={`mt-2 text-[11px] ${
-                        done
-                          ? "text-foreground font-medium"
-                          : "text-muted-foreground"
-                      }`}
-                    >
-                      {STEP_LABEL[s]}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
           <div className="mt-8 grid grid-cols-3 gap-4 text-sm">
             <div>
-              <div className="text-xs text-muted-foreground">Pengepul</div>
-              <div className="font-medium mt-1">{last.pengepul}</div>
+              <div className="text-xs text-muted-foreground">Volume Estimasi</div>
+              <div className="font-medium mt-1">{last.estimatedLiter} L</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">
-                Estimasi volume
+                Volume Aktual
               </div>
               <div className="font-medium mt-1">
-                {last.volumeEstimasi} L
+                {last.actualLiter || "-"} L
               </div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Lokasi</div>
-              <div className="font-medium mt-1">{last.lokasi}</div>
+              <div className="text-xs text-muted-foreground">Status</div>
+              <div className="font-medium mt-1">{STEP_LABEL[last.status] || last.status}</div>
             </div>
           </div>
         </div>
@@ -188,7 +176,7 @@ export default function Page() {
           </div>
 
           <div className="mt-4 space-y-3">
-            {setoranList
+            {submissions
               .slice(0, 4)
               .reverse()
               .map((s) => (
@@ -198,9 +186,9 @@ export default function Page() {
                   className="flex items-center justify-between p-3 rounded-lg hover:bg-muted/60 transition"
                 >
                   <div>
-                    <div className="text-sm font-medium">{s.id}</div>
+                    <div className="text-sm font-medium">{s.id.slice(0, 8)}</div>
                     <div className="text-xs text-muted-foreground">
-                      {s.volumeEstimasi} L · {s.pengepul}
+                      {s.estimatedLiter} L · {STEP_LABEL[s.status] || s.status}
                     </div>
                   </div>
                   <StatusBadge status={s.status} />

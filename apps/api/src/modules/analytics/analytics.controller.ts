@@ -5,6 +5,7 @@ import { JwtGuard } from '../auth/guard/jwt.guard.js';
 import { RolesGuard } from '../auth/guard/roles.guard.js';
 import { Roles } from '../auth/decorator/roles.decorator.js';
 import { GetUser } from '../auth/decorator/get-user.decorator.js';
+import { StakeholderDashboardDto } from '@repo/dto';
 
 @ApiTags('analytics')
 @ApiBearerAuth()
@@ -15,7 +16,7 @@ export class AnalyticsController {
 
     @Get('stakeholder')
     @Roles('stakeholder')
-    getStakeholderDashboard() {
+    getStakeholderDashboard(): Promise<StakeholderDashboardDto> {
         return this.analyticsService.getStakeholderDashboard();
     }
 

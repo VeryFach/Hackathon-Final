@@ -5,12 +5,13 @@ import {
     PayoutStatus,
     BatchStatus,
 } from '@prisma/client';
+import { StakeholderDashboardDto } from '@repo/dto';
 
 @Injectable()
 export class AnalyticsService {
     constructor(private prisma: PrismaService) { }
 
-    async getStakeholderDashboard() {
+    async getStakeholderDashboard(): Promise<StakeholderDashboardDto> {
         const [
             supply,
             grades,

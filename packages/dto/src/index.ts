@@ -6,3 +6,4 @@ export * from './batch.schema';
 export * from './lab.schema';
 export * from './pricing.schema';
 export * from './payout.schema';
+export * from './analytics.schema'

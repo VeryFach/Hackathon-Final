@@ -1,10 +1,10 @@
 "use client";
 
-import { use } from "react";
+import { useState, useEffect, use } from "react";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { AppShell, StatusBadge, formatRp } from "@/components/app-shell";
-import { setoranList, type SetoranStatus } from "@/lib/mock-data";
+import { submissionService } from "@/lib/api";
 import { ArrowLeft, CheckCircle2, Circle } from "lucide-react";
 
 export default function SetoranDetailPage({
@@ -12,32 +12,63 @@ export default function SetoranDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = use(params); // ✅ IMPORTANT FIX
+  const { id } = use(params);
+  const [submission, setSubmission] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const s = setoranList.find((x) => x.id === id);
+  useEffect(() => {
+    fetchSubmission();
+  }, [id]);
 
-  if (!s) notFound();
-
-  const STEPS: SetoranStatus[] = [
-    "diajukan",
-    "dijemput",
-    "diterima",
-    "diproses",
-    "selesai",
-  ];
-
-  const STEP_LABEL: Record<SetoranStatus, string> = {
-    diajukan: "Diajukan",
-    dijemput: "Dijemput",
-    diterima: "Diterima",
-    diproses: "Diproses",
-    selesai: "Selesai",
+  const fetchSubmission = async () => {
+    try {
+      const data = await submissionService.getById(id);
+      setSubmission(data);
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Gagal memuat detail setoran");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const currentIdx = STEPS.indexOf(s.status);
+  if (loading) {
+    return (
+      <AppShell title="Detail Setoran" subtitle="Memuat data...">
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </AppShell>
+    );
+  }
+
+  if (error || !submission) {
+    return (
+      <AppShell title="Detail Setoran" subtitle="Error">
+        <div className="text-sm text-red-500">{error || "Data tidak ditemukan"}</div>
+        <Link
+          href="/masyarakat/setoran"
+          className="text-xs text-accent inline-flex items-center gap-1 hover:underline mt-4"
+        >
+          <ArrowLeft className="size-3" /> Kembali ke riwayat
+        </Link>
+      </AppShell>
+    );
+  }
+
+  const s = submission;
+
+  const statusSteps = ["pending", "accepted", "pickedUp", "processed", "completed"];
+  const statusLabels: Record<string, string> = {
+    pending: "Diajukan",
+    accepted: "Diterima",
+    pickedUp: "Dijemput",
+    processed: "Diproses",
+    completed: "Selesai",
+  };
+
+  const currentIdx = statusSteps.indexOf(s.status);
 
    return (
-    <AppShell title={`Setoran ${s.id}`} subtitle={s.pengepul}>
+    <AppShell title={`Setoran ${s.id.slice(0, 8)}`} subtitle={s.collector?.fullName || "Belum diassign"}>
       <Link
         href="/masyarakat/setoran"
         className="text-xs text-muted-foreground inline-flex items-center gap-1 hover:text-foreground mb-4"
@@ -53,18 +84,13 @@ export default function SetoranDetailPage({
             style={{ boxShadow: "var(--shadow-soft)" }}
           >
             <div className="flex items-center justify-between mb-6">
-              <div className="font-semibold">Timeline</div>
+              <div className="font-semibold">Informasi Setoran</div>
               <StatusBadge status={s.status} />
             </div>
 
             <div className="space-y-4">
-              {STEPS.map((step, i) => {
+              {statusSteps.map((step, i) => {
                 const done = i <= currentIdx;
-
-                const tl = s.timeline.find(
-                  (t: { status: SetoranStatus; at: string }) =>
-                    t.status === step
-                );
 
                 return (
                   <div key={step} className="flex items-start gap-3">
@@ -88,7 +114,7 @@ export default function SetoranDetailPage({
                         )}
                       </div>
 
-                      {i < STEPS.length - 1 && (
+                      {i < statusSteps.length - 1 && (
                         <div
                           className={`w-0.5 h-8 ${
                             i < currentIdx ? "bg-accent" : "bg-border"
@@ -103,10 +129,7 @@ export default function SetoranDetailPage({
                           done ? "font-medium" : "text-muted-foreground"
                         }`}
                       >
-                        {STEP_LABEL[step]}
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {tl?.at ?? "—"}
+                        {statusLabels[step]}
                       </div>
                     </div>
                   </div>
@@ -126,33 +149,30 @@ export default function SetoranDetailPage({
               Total Pembayaran
             </div>
             <div className="mt-1 text-3xl font-semibold">
-              {s.total ? formatRp(s.total) : "—"}
+              {s.payout?.amount ? formatRp(s.payout.amount) : "—"}
             </div>
 
             <div className="mt-4 pt-4 border-t text-sm space-y-2">
-              <Row k="Volume estimasi" v={`${s.volumeEstimasi} L`} />
+              <Row k="Volume estimasi" v={`${s.estimatedLiter} L`} />
               <Row
                 k="Volume aktual"
-                v={s.volumeAktual ? `${s.volumeAktual} L` : "—"}
+                v={s.actualLiter ? `${s.actualLiter} L` : "—"}
               />
               <Row
-                k="Harga/liter"
-                v={s.hargaPerLiter ? formatRp(s.hargaPerLiter) : "—"}
+                k="Grade"
+                v={s.labResult?.grade ?? "—"}
               />
-              <Row k="Grade" v={s.grade ?? "—"} />
               <Row k="Batch" v={s.batchId ?? "—"} />
+              <Row k="Lokasi" v={s.address || "—"} />
             </div>
           </div>
 
-          <div className="rounded-xl border bg-card p-5">
-            <div className="text-xs font-medium mb-2">Lokasi & Catatan</div>
-            <div className="text-sm">{s.lokasi}</div>
-            {s.catatan && (
-              <div className="text-xs text-muted-foreground mt-2">
-                {s.catatan}
-              </div>
-            )}
-          </div>
+          {s.notes && (
+            <div className="rounded-xl border bg-card p-5">
+              <div className="text-xs font-medium mb-2">Catatan</div>
+              <div className="text-sm text-muted-foreground">{s.notes}</div>
+            </div>
+          )}
         </div>
       </div>
     </AppShell>
