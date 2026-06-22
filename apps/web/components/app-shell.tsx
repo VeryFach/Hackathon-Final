@@ -1,20 +1,8 @@
 "use client";
 import {
-  LayoutDashboard,
-  Plus,
-  History,
-  Inbox,
-  Boxes,
-  Layers,
-  PackageCheck,
-  ClipboardCheck,
-  FlaskConical,
-  Tags,
-  Map as MapIcon,
-  Leaf,
   Bell,
+  Leaf,
 } from "lucide-react";
-import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 
