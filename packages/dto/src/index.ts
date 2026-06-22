@@ -5,3 +5,4 @@ export * from './submission.schema';
 export * from './batch.schema';
 export * from './lab.schema';
 export * from './pricing.schema';
+export * from './payout.schema';

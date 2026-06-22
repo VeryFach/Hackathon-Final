@@ -10,6 +10,7 @@ import { SubmissionsModule } from './modules/submissions/submissions.module.js';
 import { BatchesModule } from './modules/batches/batches.module.js';
 import { LabModule } from './modules/lab/lab.module.js';
 import { PricingModule } from './modules/pricing/pricing.module.js';
+import { PayoutsModule } from './modules/payouts/payouts.module.js';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { PricingModule } from './modules/pricing/pricing.module.js';
     BatchesModule,
     LabModule,
     PricingModule,
+    PayoutsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
