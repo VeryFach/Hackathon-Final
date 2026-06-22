@@ -11,6 +11,7 @@ import {
   IMarkInBatchDto,
   IRecordActualLiterDto,
 } from '@repo/dto';
+import { notifyAIService } from '../../lib/ai-webhook.js';
 
 @Injectable()
 export class SubmissionsService {
@@ -34,6 +35,7 @@ export class SubmissionsService {
         status: SubmissionStatus.pending,
       },
     });
+    await notifyAIService("submission.created", submission.id);
 
     return submission;
   }

@@ -17,10 +17,10 @@ class LocationRecommendation(BaseModel):
     nama: str
 
 class ClusterPoint(BaseModel):
-    depositor_id: str
+    depositorId: str
     latitude: float
     longitude: float
-    volume: int
+    volume: float
     cluster: int
 
 class PredictionData(BaseModel):

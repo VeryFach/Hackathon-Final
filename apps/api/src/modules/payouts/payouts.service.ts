@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { PayoutStatus, SubmissionStatus } from '@prisma/client';
+import { notifyAIService } from '../../lib/ai-webhook.js';
 
 @Injectable()
 export class PayoutsService {
@@ -117,6 +118,8 @@ export class PayoutsService {
         data: { status: SubmissionStatus.completed },
       }),
     ]);
+
+    await notifyAIService("payout.paid", payout.id);
 
     return paidPayout;
   }

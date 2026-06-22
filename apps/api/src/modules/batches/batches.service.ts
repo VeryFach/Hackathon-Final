@@ -5,12 +5,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { Prisma, BatchStatus, SubmissionStatus, UserRole } from '@prisma/client';
+import {
+  Prisma,
+  BatchStatus,
+  SubmissionStatus,
+  UserRole,
+} from '@prisma/client';
 import type {
   ICreateBatchDto,
   IAddBatchItemsDto,
   IProcessBatchDto,
 } from '@repo/dto';
+import { notifyAIService } from '../../lib/ai-webhook.js';
 
 @Injectable()
 export class BatchesService {
@@ -67,7 +73,9 @@ export class BatchesService {
     return this.prisma.batch.findMany({
       include: {
         collector: {
-          include: { user: { select: { id: true, fullName: true, email: true } } },
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
         },
         validator: {
           select: { id: true, fullName: true, email: true },
@@ -142,7 +150,9 @@ export class BatchesService {
     });
 
     if (existingBatchItems.length > 0) {
-      const ids = existingBatchItems.map((item) => item.submissionId).join(', ');
+      const ids = existingBatchItems
+        .map((item) => item.submissionId)
+        .join(', ');
       throw new BadRequestException(
         `One or more submissions are already assigned to a batch: ${ids}.`,
       );
@@ -170,7 +180,9 @@ export class BatchesService {
       include: {
         batchItems: { include: { submission: true } },
         collector: {
-          include: { user: { select: { id: true, fullName: true, email: true } } },
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
         },
       },
     });
@@ -211,7 +223,9 @@ export class BatchesService {
     }
 
     if (batch.batchItems.length === 0) {
-      throw new BadRequestException('Batch must contain at least one submission before processing.');
+      throw new BadRequestException(
+        'Batch must contain at least one submission before processing.',
+      );
     }
 
     const actualLiterTotal = batch.batchItems.reduce(
@@ -242,13 +256,11 @@ export class BatchesService {
       );
     }
 
-    const yieldRatio =
-      dto.rawOil > 0 ? clean / dto.rawOil : 0;
+    const yieldRatio = dto.rawOil > 0 ? clean / dto.rawOil : 0;
 
-    const sedimentRatio =
-      dto.rawOil > 0 ? dto.residue / dto.rawOil : 0;
+    const sedimentRatio = dto.rawOil > 0 ? dto.residue / dto.rawOil : 0;
 
-    return this.prisma.batch.update({
+    const updatedBatch = this.prisma.batch.update({
       where: { id: batchId },
       data: {
         totalRawOilLiter: dto.rawOil,
@@ -259,6 +271,7 @@ export class BatchesService {
         totalLiter: clean,
       },
     });
+    return updatedBatch;
   }
 
   async send(batchId: string, userId: string) {
@@ -294,12 +307,13 @@ export class BatchesService {
       );
     }
 
-    return this.prisma.batch.update({
+    const updatedBatch = this.prisma.batch.update({
       where: { id: batchId },
       data: {
         status: BatchStatus.sent,
       },
     });
+    return updatedBatch;
   }
 
   async findOne(batchId: string, userId?: string, role?: UserRole) {
@@ -307,7 +321,9 @@ export class BatchesService {
       where: { id: batchId },
       include: {
         collector: {
-          include: { user: { select: { id: true, fullName: true, email: true } } },
+          include: {
+            user: { select: { id: true, fullName: true, email: true } },
+          },
         },
         validator: {
           select: { id: true, fullName: true, email: true },
