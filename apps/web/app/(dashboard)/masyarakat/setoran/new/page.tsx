@@ -5,42 +5,39 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Camera, MapPin, Droplets, ArrowLeft } from "lucide-react";
 import { AppShell, formatRp } from "@/components/app-shell";
-import { submissionService } from "@/lib/api";
+import { useCreateSubmission } from "@/lib/api/hooks";
 import type { CreateSubmissionDto } from "@/lib/api";
 
 export default function NewSetoran() {
   const [volume, setVolume] = useState(5);
   const [lokasi, setLokasi] = useState("");
   const [catatan, setCatatan] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
   const router = useRouter();
+  const createMutation = useCreateSubmission();
+  
   const hargaEstimasi = volume * 6200;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError("");
 
     try {
       const data: CreateSubmissionDto = {
         estimatedLiter: volume,
-        latitude: "-6.2088", // Default Jakarta, bisa diganti dengan geolocation
+        latitude: "-6.2088",
         longitude: "106.8456",
         address: lokasi,
         notes: catatan,
       };
 
-      await submissionService.create(data);
+      await createMutation.mutateAsync(data);
       
-      // Redirect to submissions list
       router.push("/masyarakat/setoran");
       router.refresh();
     } catch (err: any) {
       setError(err.response?.data?.message || "Gagal membuat setoran.");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -117,11 +114,11 @@ export default function NewSetoran() {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={createMutation.isPending}
             className="w-full py-3 rounded-lg text-sm font-medium text-primary-foreground disabled:opacity-50"
             style={{ background: "var(--gradient-warm)" }}
           >
-            {loading ? "Memproses..." : "Kirim Permintaan Setoran"}
+            {createMutation.isPending ? "Memproses..." : "Kirim Permintaan Setoran"}
           </button>
         </form>
 

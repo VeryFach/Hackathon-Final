@@ -20,7 +20,7 @@ import { api } from "@/lib/axios"; // Sesuaikan path ini dengan lokasi file axio
 type RegisterFormValues = {
   fullName: string;
   email: string;
-  role: string;
+  role: "masyarakat" | "pengepul";
   password: string;
   confirmPassword: string;
 };
@@ -40,7 +40,7 @@ export default function RegisterPage() {
     defaultValues: {
       fullName: "",
       email: "",
-      role: "masyarakat", // Default role sesuai curl
+      role: "masyarakat",
       password: "",
       confirmPassword: "",
     },
@@ -169,7 +169,7 @@ export default function RegisterPage() {
           {/* Input Peran */}
           <div>
             <label className="font-mono text-[11px] tracking-widest text-muted-foreground uppercase block mb-1.5">
-              Peran (Role)
+              Peran
             </label>
             <div className="relative">
               <Users
@@ -181,7 +181,7 @@ export default function RegisterPage() {
                 {...register("role", { required: "Peran wajib dipilih" })}
               >
                 <option value="masyarakat">Masyarakat</option>
-                 <option value="pengepul">Pengepul</option>
+                <option value="pengepul">Pengepul</option>
               </select>
             </div>
           </div>

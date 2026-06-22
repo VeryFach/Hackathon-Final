@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { PayoutStatus } from '@prisma/client';
+import { PayoutStatus, SubmissionStatus } from '@prisma/client';
 
 @Injectable()
 export class PayoutsService {
@@ -104,13 +104,21 @@ export class PayoutsService {
       throw new BadRequestException('Payout has already been paid.');
     }
 
-    return this.prisma.payout.update({
-      where: { id: payoutId },
-      data: {
-        status: PayoutStatus.paid,
-        paidAt: new Date(),
-      },
-    });
+    const [paidPayout] = await this.prisma.$transaction([
+      this.prisma.payout.update({
+        where: { id: payoutId },
+        data: {
+          status: PayoutStatus.paid,
+          paidAt: new Date(),
+        },
+      }),
+      this.prisma.oilSubmission.update({
+        where: { id: payout.submissionId },
+        data: { status: SubmissionStatus.completed },
+      }),
+    ]);
+
+    return paidPayout;
   }
 
   async findMine(userId: string) {

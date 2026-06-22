@@ -98,10 +98,10 @@ describe('PricingService', () => {
       expect(result).toEqual(expected);
     });
 
-    it('should accept optional name and basePrice in DTO', async () => {
+    it('should create pricing from an empty DTO', async () => {
       mockPrisma.pricing.create.mockResolvedValue(mockPricing(false));
 
-      await service.create('user-1', { name: 'June 2026', basePrice: 8000 });
+      await service.create('user-1', {});
 
       expect(mockPrisma.pricing.create).toHaveBeenCalledWith({
         data: { createdBy: 'user-1', active: false },

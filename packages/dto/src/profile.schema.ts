@@ -18,7 +18,7 @@ export const CreateCollectorProfileSchema = z.object({
     longitude: z.string().regex(/^-?\d+(\.\d+)?$/),
     warehouseAddress: z.string().min(1),
     serviceRadiusKm: z.number().nonnegative(),
-    capacityLiter: z.number().nonnegative(),
+    capacityLiter: z.number().int().nonnegative(),
 });
 
 export const UpdateCollectorProfileSchema = z.object({
@@ -26,7 +26,7 @@ export const UpdateCollectorProfileSchema = z.object({
     longitude: z.string().regex(/^-?\d+(\.\d+)?$/).optional(),
     warehouseAddress: z.string().min(1).optional(),
     serviceRadiusKm: z.number().nonnegative().optional(),
-    capacityLiter: z.number().nonnegative().optional(),
+    capacityLiter: z.number().int().nonnegative().optional(),
 });
 
 export type ICreateDepositorProfileDto = z.infer<typeof CreateDepositorProfileSchema>;

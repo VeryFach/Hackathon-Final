@@ -18,7 +18,7 @@ export class AuthService {
     const passwordHash = await argon2.hash(dto.password);
     try {
       const fullName = dto.fullName || 'Anonymous User';
-      const role = dto.role || UserRole.masyarakat; // gunakan dari DTO atau default
+      const role = dto.role ?? UserRole.masyarakat;
       const user = await this.prisma.user.create({
         data: {
           email: dto.email,

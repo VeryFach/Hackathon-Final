@@ -19,7 +19,7 @@ const mockPrisma = {
     update: jest.fn(),
   },
   batch: { findUnique: jest.fn() },
-  batchItem: { create: jest.fn() },
+  batchItem: { create: jest.fn(), findUnique: jest.fn() },
   $transaction: jest.fn(),
 };
 
@@ -226,6 +226,12 @@ describe('SubmissionsService', () => {
       );
       const batchItem = { id: 'bi-1', batchId: 'batch-1', submissionId: 'sub-1' };
       const updated = makeSubmission({ status: SubmissionStatus.in_batch });
+      mockPrisma.batch.findUnique.mockResolvedValue({
+        id: 'batch-1',
+        collectorId: 'col-1',
+        status: 'draft',
+      });
+      mockPrisma.batchItem.findUnique.mockResolvedValue(null);
       mockPrisma.$transaction.mockResolvedValue([batchItem, updated]);
 
       const result = await service.markInBatch('sub-1', 'user-2', { batchId: 'batch-1' });

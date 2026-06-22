@@ -20,12 +20,17 @@ export interface RegisterDto {
   email: string;
   password: string;
   fullName?: string;
-  role: "stakeholder" | "masyarakat" | "pengepul";
+  role?: "masyarakat" | "pengepul";
 }
 
 export interface LoginDto {
   email: string;
   password: string;
+}
+
+export interface UpdateUserDto {
+  email?: string;
+  name?: string;
 }
 
 // ==================== API FUNCTIONS ====================
@@ -50,7 +55,7 @@ export const authService = {
     return response.data;
   },
 
-  updateProfile: async (data: Partial<User>): Promise<User> => {
+  updateProfile: async (data: UpdateUserDto): Promise<User> => {
     const response = await api.patch("/users", data);
     return response.data;
   },

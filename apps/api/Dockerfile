@@ -45,6 +45,8 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
 RUN useradd -m appuser
 USER appuser
 
@@ -67,4 +69,4 @@ COPY --from=installer --chown=appuser:appuser /app/apps/api/prisma.config.ts ./a
 
 EXPOSE 3001
 
-CMD ["sh", "-c", "cd apps/api && npx prisma db push && node dist/src/main.js"]
+CMD ["sh", "-c", "cd apps/api && npx prisma db push && node dist/main.js"]
