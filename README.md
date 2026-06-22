@@ -9,6 +9,7 @@ EcoOil adalah platform pengelolaan rantai pasok minyak jelantah dari masyarakat,
 - AI service: FastAPI, scikit-learn, Prophet
 - Monorepo: pnpm workspace, Turborepo
 - Infrastructure lokal: Docker Compose, PostgreSQL
+- Deployment: Docker, Nginx, Git Action CI/CD
 
 ## Struktur Aplikasi
 

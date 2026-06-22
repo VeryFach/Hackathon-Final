@@ -15,10 +15,7 @@ import * as argon2 from 'argon2';
 // Setup Prisma Client with pg Pool Adapter (Fix for Initialization Error)
 // ------------------------------------------------------------------ //
 const pool = new Pool({
-  connectionString:
-    process.env['NODE_ENV'] === 'production'
-      ? process.env['DATABASE_URL_NEON']
-      : process.env['DATABASE_URL'],
+  connectionString: process.env['DATABASE_URL'],
 });
 
 const adapter = new PrismaPg(pool);
