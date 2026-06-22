@@ -17,7 +17,7 @@ import { UsersService } from './users.service.js';
 import { JwtGuard } from '../auth/guard/jwt.guard.js';
 import { GetUser } from '../auth/decorator/get-user.decorator.js';
 import { EditUserDto } from './dto/edit-user.dto.js';
-import { ZodValidationPipe } from 'src/lib/pipes/zod.pipe';
+import { ZodValidationPipe } from '../../lib/pipes/zod.pipe.js';
 import { EditUserSchema } from '@repo/dto';
 
 @ApiTags('users')

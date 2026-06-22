@@ -21,9 +21,13 @@ export class UsersService {
   }
 
   async editUser(userId: string, dto: EditUserDto) {
+    const { name, ...rest } = dto;
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { ...dto },
+      data: {
+        ...(name !== undefined && { fullName: name }),
+        ...rest,
+      },
     });
 
     const { passwordHash, ...userWithoutHash } = user;
