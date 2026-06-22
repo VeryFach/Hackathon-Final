@@ -8,6 +8,10 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { ProfilesModule } from './modules/profile/profiles.module.js';
 import { SubmissionsModule } from './modules/submissions/submissions.module.js';
 import { BatchesModule } from './modules/batches/batches.module.js';
+import { LabModule } from './modules/lab/lab.module.js';
+import { PricingModule } from './modules/pricing/pricing.module.js';
+import { PayoutsModule } from './modules/payouts/payouts.module.js';
+import { AnalyticsModule } from './modules/analytics/analytics.module.js'
 
 @Module({
   imports: [
@@ -18,6 +22,10 @@ import { BatchesModule } from './modules/batches/batches.module.js';
     ProfilesModule,
     SubmissionsModule,
     BatchesModule,
+    LabModule,
+    PricingModule,
+    PayoutsModule,
+    AnalyticsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
