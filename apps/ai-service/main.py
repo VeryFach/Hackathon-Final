@@ -134,6 +134,8 @@ def _run_analysis() -> AIResponse:
                 bulan=row["ds"].strftime("%Y-%m"),
                 total_value=float(row["y"]),
                 type="realisasi",
+                volume_liter=float(row["volume_liter"]) if "volume_liter" in row else None,
+                price_per_liter=float(row["price_per_liter"]) if "price_per_liter" in row else None,
             ))
 
         for f in forecast_result["forecast"]:
@@ -141,6 +143,8 @@ def _run_analysis() -> AIResponse:
                 bulan=pd.to_datetime(f["ds"]).strftime("%Y-%m"),
                 total_value=f["yhat"],
                 type="prediksi",
+                volume_liter=f.get("volume_liter"),
+                price_per_liter=f.get("price_per_liter"),
             ))
 
         next_value = forecast_result["next_value"] or 0.0
@@ -244,10 +248,10 @@ async def cluster_from_db(n_clusters: Optional[int] = None):
 @app.get("/predict-fund")
 async def predict_fund_endpoint():
     history = load_purchase_history_from_db()
-    if history.empty:
+    if history.empty or len(history) < 3:
         history = load_batch_value_history_from_db()
     if history.empty:
-        raise HTTPException(status_code=404, detail="No purchase/payout history found in database.")
+        raise HTTPException(status_code=404, detail="No volume and price history found in database.")
     return forecast_fund(history, periods=1)
 
 

@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { PricingService } from './pricing.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { BatchStatus, OilGrade } from '@prisma/client';
+import { BatchStatus, OilGrade, PayoutStatus } from '@prisma/client';
 
 describe('PricingService', () => {
   let service: PricingService;
@@ -72,8 +72,24 @@ describe('PricingService', () => {
       batchPricing: {
         create: jest.fn(),
       },
+      batchItem: {
+        findMany: jest.fn(),
+      },
+      payout: {
+        upsert: jest.fn(),
+      },
+      oilSubmission: {
+        updateMany: jest.fn(),
+      },
       $transaction: jest.fn(),
     };
+    mockPrisma.$transaction.mockImplementation((arg: any) => {
+      if (Array.isArray(arg)) {
+        return Promise.all(arg);
+      }
+
+      return arg(mockPrisma);
+    });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -335,6 +351,17 @@ describe('PricingService', () => {
       mockPrisma.batch.findUnique.mockResolvedValue(mockBatch(BatchStatus.approved, 80, false));
       mockPrisma.labResult.findUnique.mockResolvedValue(labResultGradeA);
       mockPrisma.pricing.findFirst.mockResolvedValue(activePricingWithRules);
+      mockPrisma.batchItem.findMany.mockResolvedValue([
+        { submission: { id: 'sub-1', actualLiter: 120 } },
+      ]);
+      mockPrisma.payout.upsert.mockResolvedValue({
+        id: 'pay-1',
+        submissionId: 'sub-1',
+        amount: 768000,
+        status: PayoutStatus.paid,
+        paidAt: expect.any(Date),
+      });
+      mockPrisma.oilSubmission.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.batchPricing.create.mockResolvedValue({
         id: 'bp-1',
         batchId: 'batch-1',
@@ -358,12 +385,39 @@ describe('PricingService', () => {
       });
       expect(result.finalPricePerLiter).toBe(9600);
       expect(result.totalValue).toBe(768000);
+      expect(mockPrisma.payout.upsert).toHaveBeenCalledWith({
+        where: { submissionId: 'sub-1' },
+        create: expect.objectContaining({
+          submissionId: 'sub-1',
+          amount: 768000,
+          status: PayoutStatus.paid,
+        }),
+        update: expect.objectContaining({
+          amount: 768000,
+          status: PayoutStatus.paid,
+        }),
+      });
+      expect(mockPrisma.oilSubmission.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ['sub-1'] } },
+        data: { status: 'completed' },
+      });
     });
 
     it('should calculate final price for Grade B, 200L (volume range 101-500, +5%)', async () => {
       mockPrisma.batch.findUnique.mockResolvedValue(mockBatch(BatchStatus.approved, 200, false));
       mockPrisma.labResult.findUnique.mockResolvedValue({ ...labResultGradeA, grade: OilGrade.B });
       mockPrisma.pricing.findFirst.mockResolvedValue(activePricingWithRules);
+      mockPrisma.batchItem.findMany.mockResolvedValue([
+        { submission: { id: 'sub-1', actualLiter: 120 } },
+      ]);
+      mockPrisma.payout.upsert.mockResolvedValue({
+        id: 'pay-1',
+        submissionId: 'sub-1',
+        amount: 1680000,
+        status: PayoutStatus.paid,
+        paidAt: expect.any(Date),
+      });
+      mockPrisma.oilSubmission.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.batchPricing.create.mockResolvedValue({
         id: 'bp-2',
         batchId: 'batch-1',
@@ -385,6 +439,17 @@ describe('PricingService', () => {
       mockPrisma.batch.findUnique.mockResolvedValue(mockBatch(BatchStatus.approved, 600, false));
       mockPrisma.labResult.findUnique.mockResolvedValue({ ...labResultGradeA, grade: OilGrade.C });
       mockPrisma.pricing.findFirst.mockResolvedValue(activePricingWithRules);
+      mockPrisma.batchItem.findMany.mockResolvedValue([
+        { submission: { id: 'sub-1', actualLiter: 120 } },
+      ]);
+      mockPrisma.payout.upsert.mockResolvedValue({
+        id: 'pay-1',
+        submissionId: 'sub-1',
+        amount: 4224000,
+        status: PayoutStatus.paid,
+        paidAt: expect.any(Date),
+      });
+      mockPrisma.oilSubmission.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.batchPricing.create.mockResolvedValue({
         id: 'bp-3',
         batchId: 'batch-1',
