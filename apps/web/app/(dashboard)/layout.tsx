@@ -103,7 +103,7 @@ export default function DashboardLayout({
     setProfileOpen(false);
 
     if (action === "logout") handleLogout();
-    if (action === "settings") navigate("/settings");
+    if (action === "settings") navigate("/profile");
   };
 
   return (
