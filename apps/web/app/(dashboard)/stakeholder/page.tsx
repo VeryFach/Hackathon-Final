@@ -1,3 +1,4 @@
+// apps/web/app/(dashboard)/stakeholder/page.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -24,9 +25,10 @@ const FALLBACK_COORDINATES = [
 
 export default function StakeholderPage() {
   const [coordinates, setCoordinates] = useState(FALLBACK_COORDINATES);
+  const [collectors, setCollectors] = useState<any[]>([]);
   const [clusters, setClusters] = useState<any>(null);
   
-  // State baru untuk fitur prediksi
+  // State untuk prediksi
   const [prediction, setPrediction] = useState<any>(null);
   const [predictDays, setPredictDays] = useState<number>(7);
   const [loadingPrediction, setLoadingPrediction] = useState(false);
@@ -49,10 +51,8 @@ export default function StakeholderPage() {
       };
       if (clusterMode === "manual") {
         payload.n_clusters = manualClusters;
-      } else {
-        payload.n_clusters = null; // auto
       }
-      
+      // Jika auto, biarkan n_clusters = null (backend akan auto-determine)
       const response = await axios.post(`${API_URL}/cluster`, payload);
       setClusters(response.data);
     } catch (err: any) {
@@ -63,50 +63,57 @@ export default function StakeholderPage() {
     }
   };
 
-  // Fungsi baru untuk fetch prediksi
   const fetchPrediction = async () => {
     setLoadingPrediction(true);
     try {
-      // Sesuaikan endpoint dan payload dengan backend AI Anda
-      // Contoh: memprediksi volume untuk n hari ke depan
-      const response = await axios.get(`${API_URL}/predict-fund`);
+      const response = await axios.post(`${API_URL}/predict`, null, {
+        params: { days: predictDays },
+      });
       setPrediction(response.data);
     } catch (err: any) {
       console.error("❌ Prediction error:", err);
-      // Fallback atau error handling untuk prediksi
+      setPrediction(null);
     } finally {
       setLoadingPrediction(false);
     }
   };
 
-  // Ambil data penyetor dari AI service saat mount
+  // Ambil data penyetor, pengepul, dan prediksi saat mount
   useEffect(() => {
-    const fetchDepositors = async () => {
+    const fetchAllData = async () => {
       try {
-        const response = await axios.get(`${API_URL}/depositors`);
-        if (response.data && response.data.length > 0) {
-          setCoordinates(response.data);
-          await fetchClusters(response.data);
-        } else {
-          await fetchClusters(FALLBACK_COORDINATES);
+        // 1. Ambil depositors
+        const depRes = await axios.get(`${API_URL}/depositors`);
+        let coords = FALLBACK_COORDINATES;
+        if (depRes.data && depRes.data.length > 0) {
+          coords = depRes.data;
+          setCoordinates(coords);
         }
+
+        // 2. Ambil collectors
+        const colRes = await axios.get(`${API_URL}/collectors`);
+        if (colRes.data && colRes.data.length > 0) {
+          setCollectors(colRes.data);
+        }
+
+        // 3. Lakukan clustering
+        await fetchClusters(coords);
+
+        // 4. Ambil prediksi
+        await fetchPrediction();
       } catch (err) {
-        console.error("❌ Failed to fetch depositors:", err);
-        await fetchClusters(FALLBACK_COORDINATES);
+        console.error("❌ Failed to fetch initial data:", err);
       } finally {
         setLoadingDepositors(false);
-        // Panggil prediksi saat pertama kali muat
-        fetchPrediction();
       }
     };
-    fetchDepositors();
+    fetchAllData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Efek untuk refetch saat mode atau jumlah cluster berubah
   const handleRefresh = () => {
     fetchClusters(coordinates);
-    fetchPrediction(); // Refresh prediksi juga
+    fetchPrediction();
   };
 
   if (loadingDepositors) {
@@ -122,7 +129,7 @@ export default function StakeholderPage() {
     <div className="space-y-6 p-6">
       <div className="flex justify-between items-center flex-wrap gap-4">
         <h1 className="text-2xl font-bold text-foreground">Stakeholder Dashboard</h1>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
             <RadioGroup
               value={clusterMode}
@@ -162,7 +169,7 @@ export default function StakeholderPage() {
         </div>
       </div>
 
-      {/* Area Prediksi AI (Atas) */}
+      {/* Area Prediksi AI */}
       <Card className="border-primary/20 bg-primary/5">
         <CardHeader className="pb-2 flex flex-row justify-between items-center">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -189,15 +196,15 @@ export default function StakeholderPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="p-3 bg-background rounded-md border">
                 <p className="text-xs text-muted-foreground">Estimasi Volume</p>
-                <p className="text-xl font-bold">{prediction.estimated_volume || "0"} L</p>
+                <p className="text-xl font-bold">{prediction.estimated_volume || 0} L</p>
               </div>
               <div className="p-3 bg-background rounded-md border">
-                <p className="text-xs text-muted-foreground">Tingkat Akurasi (Confidence)</p>
-                <p className="text-xl font-bold">{prediction.confidence || "0"}%</p>
+                <p className="text-xs text-muted-foreground">Tingkat Akurasi</p>
+                <p className="text-xl font-bold">{prediction.confidence || 0}%</p>
               </div>
               <div className="p-3 bg-background rounded-md border md:col-span-2">
                 <p className="text-xs text-muted-foreground">Catatan AI</p>
-                <p className="text-sm font-medium mt-1">{prediction.insight || "Terjadi peningkatan tren positif."}</p>
+                <p className="text-sm font-medium mt-1">{prediction.insight || "Data belum cukup."}</p>
               </div>
             </div>
           ) : (
@@ -206,18 +213,22 @@ export default function StakeholderPage() {
         </CardContent>
       </Card>
 
-      {/* Area Peta & Cluster (Bawah) */}
+      {/* Area Peta & Cluster */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Peta Persebaran & Rekomendasi</CardTitle>
           </CardHeader>
           <CardContent>
-            <Map points={coordinates} clusters={clusters}/>
+            <Map 
+              points={coordinates} 
+              clusters={clusters} 
+              collectors={collectors} 
+            />
             {error && <p className="text-red-500 text-sm mt-2">Error: {error}</p>}
             <p className="text-xs text-muted-foreground mt-2">
-              {coordinates.length} penyetor di peta
-              {clusters && ` | Cluster digunakan: ${clusters.n_clusters_used}`}
+              {coordinates.length} penyetor | {collectors.length} pengepul
+              {clusters && ` | Cluster: ${clusters.n_clusters_used || Object.keys(clusters.cluster_counts).length}`}
             </p>
           </CardContent>
         </Card>
@@ -230,7 +241,7 @@ export default function StakeholderPage() {
             <CardContent>
               {loading ? (
                 <p className="text-muted-foreground">Memuat data cluster...</p>
-              ) : clusters ? (
+              ) : clusters?.cluster_counts ? (
                 <div className="space-y-2">
                   {Object.entries(clusters.cluster_counts).map(([clusterId, count]) => (
                     <div key={clusterId} className="flex justify-between items-center border-b pb-2">
