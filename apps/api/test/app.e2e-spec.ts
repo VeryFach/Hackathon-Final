@@ -1,29 +1,45 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication } from '@nestjs/common';
+import { INestApplication, ValidationPipe, RequestMethod } from '@nestjs/common';
 import request from 'supertest';
-import { App } from 'supertest/types';
-import { AppModule } from './../src/app.module';
+import { AppModule } from '../src/app.module';
+import cookieParser from 'cookie-parser';
+import { cleanDatabase, disconnectTestDb } from './test-db';
 
-describe('AppController (e2e)', () => {
-  let app: INestApplication<App>;
+describe('App Health (e2e)', () => {
+  let app: INestApplication;
 
-  beforeEach(async () => {
+  beforeAll(async () => {
+    await cleanDatabase();
+
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    app.use(cookieParser());
+    app.setGlobalPrefix('api', {
+      exclude: [{ path: '', method: RequestMethod.GET }],
+    });
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, transform: true }));
     await app.init();
   });
 
-  it('/ (GET)', () => {
-    return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+  afterAll(async () => {
+    await cleanDatabase();
+    await app.close();
+    await disconnectTestDb();
   });
 
-  afterEach(async () => {
-    await app.close();
+  it('GET / should return 200', () => {
+    return request(app.getHttpServer())
+      .get('/')
+      .expect(200);
+  });
+
+  it('POST /api/auth/register without body should return 400', () => {
+    return request(app.getHttpServer())
+      .post('/api/auth/register')
+      .send({})
+      .expect(400);
   });
 });

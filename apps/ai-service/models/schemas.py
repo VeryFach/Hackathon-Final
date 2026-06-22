@@ -1,0 +1,35 @@
+from pydantic import BaseModel
+from typing import List, Optional
+
+class Coordinate(BaseModel):
+    latitude: float
+    longitude: float
+
+class ClusterRequest(BaseModel):
+    coordinates: List[Coordinate]
+    n_clusters: Optional[int] = None
+
+class LocationRecommendation(BaseModel):
+    latitude: float
+    longitude: float
+    cluster: int
+    score: float
+    nama: str
+
+class ClusterPoint(BaseModel):
+    depositor_id: str
+    latitude: float
+    longitude: float
+    volume: int
+    cluster: int
+
+class PredictionData(BaseModel):
+    bulan: str
+    total_value: float
+    type: str
+
+class AIResponse(BaseModel):
+    recommendations: List[LocationRecommendation]
+    clusters: List[ClusterPoint]
+    prediction: List[PredictionData]
+    prediction_next_value: float
