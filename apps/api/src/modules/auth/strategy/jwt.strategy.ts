@@ -29,7 +29,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     });
   }
 
-  async validate(payload: { sub: string; email: string }) {
+  async validate(payload: { sub: string; email: string; role: string }) {
     const user = await this.prisma.user.findUnique({
       where: { id: payload.sub },
     });
@@ -38,8 +38,9 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       return null;
     }
 
-    // Remove hash from the user object before attaching to request
-    const { passwordHash, ...userWithoutHash } = user;
-    return userWithoutHash;
+    // Return the JWT payload so req.user contains { sub, email, role }
+    // Include `id` as alias for `sub` for compatibility with @GetUser('id')
+    // The DB lookup above ensures the user still exists
+    return { sub: payload.sub, id: payload.sub, email: payload.email, role: payload.role };
   }
 }

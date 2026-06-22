@@ -18,11 +18,13 @@ export class AuthService {
     const passwordHash = await argon2.hash(dto.password);
     try {
       const fullName = dto.fullName || 'Anonymous User';
+      const role = dto.role || UserRole.masyarakat; // gunakan dari DTO atau default
       const user = await this.prisma.user.create({
         data: {
           email: dto.email,
-          fullName: fullName,
-          passwordHash: passwordHash,
+          fullName,
+          passwordHash,
+          role,
         },
       });
 
@@ -47,7 +49,6 @@ export class AuthService {
     if (!user) throw new ForbiddenException('Invalid credentials');
     const passwordValid = await argon2.verify(user.passwordHash, dto.password);
     if (!passwordValid) throw new ForbiddenException('Invalid credentials');
-    // Kirimkan user.role
     return this.signToken(user.id, user.email, user.role);
   }
 
@@ -67,14 +68,12 @@ export class AuthService {
       user = await this.prisma.user.create({
         data: {
           email: req.user.email,
-          fullName: req.user.fullName || req.user.name,
+          fullName: req.user.fullName || req.user.name || 'Google User',
           passwordHash: dummyHash,
-          // googleAccessToken & googleRefreshToken tidak ada di schema, jangan disimpan
+          role: UserRole.masyarakat, // default untuk google login
         },
       });
     }
-    // Jika perlu update token, tambahkan field ke schema terlebih dahulu
-    // Untuk sementara, tidak ada update
 
     return this.signToken(user.id, user.email, user.role);
   }
@@ -87,7 +86,7 @@ export class AuthService {
     const payload = {
       sub: userId,
       email,
-      role, // masukkan role ke payload
+      role,
     };
     const secret = this.config.get<string>('JWT_SECRET');
     const expiresIn = this.config.get<string>('JWT_EXPIRES_IN') || '1d';

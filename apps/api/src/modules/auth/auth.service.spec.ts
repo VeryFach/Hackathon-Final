@@ -112,6 +112,7 @@ describe('AuthService', () => {
           email: 'alice@example.com',
           fullName: 'Alice Wonderland',
           passwordHash: '$argon2id$hashed_password',
+          role: 'masyarakat',
         },
       });
 
@@ -260,22 +261,22 @@ describe('AuthService', () => {
 
   describe('signToken()', () => {
     it('should call jwt.signAsync with correct payload and return access_token', async () => {
-      const result = await service.signToken('uuid-1', 'bob@test.com', 'user');
+      const result = await service.signToken('uuid-1', 'bob@test.com', 'masyarakat' as any);
 
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
-        { sub: 'uuid-1', email: 'bob@test.com', role: 'user' },
+        { sub: 'uuid-1', email: 'bob@test.com', role: 'masyarakat' },
         { expiresIn: '1h', secret: 'test-secret' },
       );
       expect(result).toEqual({ access_token: 'mock.jwt.token' });
     });
 
     it('should default expiresIn to "1d" when JWT_EXPIRES_IN is not set', async () => {
-      mockConfig.get.mockImplementation((key: string): string | undefined => {
+      mockConfig.get.mockImplementation(((key: string) => {
         if (key === 'JWT_SECRET') return 'test-secret';
         return undefined; // JWT_EXPIRES_IN not configured
-      });
+      }) as any);
 
-      await service.signToken('uuid-1', 'bob@test.com', 'user');
+      await service.signToken('uuid-1', 'bob@test.com', 'masyarakat' as any);
 
       expect(mockJwt.signAsync).toHaveBeenCalledWith(
         expect.any(Object),
